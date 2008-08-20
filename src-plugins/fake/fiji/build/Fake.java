@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -320,6 +321,12 @@ public class Fake {
 
 			addSpecialRule(new Special("check") {
 				void action() { check(); }
+			});
+
+			addSpecialRule(new Special("build.xml") {
+				void action() throws FakeException {
+					makeAntFile(Parser.this);
+				}
 			});
 		}
 
@@ -1213,6 +1220,17 @@ public class Fake {
 
 			public String getPrerequisiteString() {
 				return prerequisiteString;
+			}
+
+			List getPrerequisitesWithRules() {
+				List result = new ArrayList();
+				Iterator iter = prerequisites.iterator();
+				while (iter.hasNext()) {
+					String prereq = (String)iter.next();
+					if (allRules.containsKey(prereq))
+						result.add(prereq);
+				}
+				return result;
 			}
 		}
 
@@ -3278,6 +3296,42 @@ public class Fake {
 			+ "update/" + absolute.substring(len));
 		result.getParentFile().mkdirs();
 		return result;
+	}
+
+	void makeAntFile(Parser parser) throws FakeException {
+		PrintStream out;
+		try {
+			out = new PrintStream("build.xml");
+		} catch(FileNotFoundException e) {
+			throw new FakeException("Could not create build.xml");
+		}
+		out.println("<project name=\"Fiji\" default=\""
+			+ parser.allRule.target + "\" basedir=\".\">");
+
+		List list = new ArrayList(parser.allRules.keySet());
+		Collections.sort(list);
+		Iterator iter = list.iterator();
+		while (iter.hasNext()) {
+			String name = (String)iter.next();
+			Parser.Rule rule =
+				(Parser.Rule)parser.allRules.get(name);
+			printAntTarget(out, rule);
+		}
+
+		out.println("</project>");
+		out.close();
+	}
+
+	void printAntTarget(PrintStream out, Parser.Rule rule) {
+		String depends = join(rule.getPrerequisitesWithRules(), ",");
+		out.println("\t<target name=\"" + rule.target + "\" depends=\""
+			 + depends + "\">");
+		if (rule instanceof Parser.All)
+			; /* do nothing */
+		else
+			System.err.println("Warning: ignore action for target "
+				 + rule);
+		out.println("\t</target>");
 	}
 
 
