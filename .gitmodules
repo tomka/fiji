@@ -79,3 +79,6 @@
 [submodule "jdom"]
 	path = jdom
 	url = contrib@pacific.mpi-cbg.de:/srv/git/jdom/.git
+[submodule "swing-layout"]
+	path = swing-layout
+	url = contrib@pacific.mpi-cbg.de:/srv/git/swing-layout/.git
