@@ -100,6 +100,8 @@ SUBMODULE_TARGETS=\
 	jars/jython.jar \
 	jars/imglib.jar \
 	jars/appframework.jar \
+	jars/visualap/.jar \
+	jars/jdom.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -200,6 +202,8 @@ jars/weka.jar <- weka/
 jars/jython.jar <- jython/
 jars/imglib.jar <- imglib/
 jars/appframework.jar <- appframework/
+jars/visualap/.jar <- visualap//
+jars/jdom.jar <- jdom/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -380,6 +384,8 @@ precompile-submodules[] <- \
 	precompiled/jython.jar \
 	precompiled/imglib.jar \
 	precompiled/appframework.jar \
+	precompiled/.jar \
+	precompiled/jdom.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -393,6 +399,8 @@ precompiled/weka.jar <- jars/weka.jar
 precompiled/jython.jar <- jars/jython.jar
 precompiled/imglib.jar <- jars/imglib.jar
 precompiled/appframework.jar <- jars/appframework.jar
+precompiled/.jar <- jars/visualap/.jar
+precompiled/jdom.jar <- jars/jdom.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules

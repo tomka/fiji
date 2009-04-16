@@ -73,3 +73,9 @@
 [submodule "appframework"]
 	path = appframework
 	url = contrib@pacific.mpi-cbg.de:/srv/git/appframework/.git
+[submodule "visualap/"]
+	path = visualap/
+	url = contrib@pacific.mpi-cbg.de:/srv/git/visualap.git
+[submodule "jdom"]
+	path = jdom
+	url = contrib@pacific.mpi-cbg.de:/srv/git/jdom/.git
