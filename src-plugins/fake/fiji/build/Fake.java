@@ -1112,6 +1112,10 @@ public class Fake {
 							subkey, target));
 			}
 
+			File getCwd() {
+				return cwd;
+			}
+
 			File getBuildDir() {
 				String dir = getVar("builddir");
 				if (dir == null || dir.equals(""))
@@ -2418,6 +2422,121 @@ public class Fake {
 		}
 	}
 
+	static void addAntCreateLeadingDirectories(PrintStream out,
+			String file, Set dirs) {
+		int slash = file.lastIndexOf('/');
+
+		if (slash < 0)
+			return;
+
+		String dir = file.substring(0, slash);
+		if (!dirs.contains(dir)) {
+			out.println("<mkdir dir=\"" + dir + "\"/>");
+			dirs.add(dir);
+		}
+	}
+
+	static void addAntCopy(PrintStream out,
+			String src, String dest, Set dirs) {
+		addAntCreateLeadingDirectories(out, dest, dirs);
+		out.println("<copy file=\"" + src + "\" tofile=\"" +
+				dest + "\"/>");
+	}
+
+	static void printAntTarget(PrintStream out, Parser.CompileJar rule)
+			throws FakeException {
+		Set dirs = new HashSet();
+		String build = "${build}/build." + rule.target;
+
+		String classPath = discoverClassPath();
+		String extraClassPath = rule.getVar("CLASSPATH");
+		if (extraClassPath != null)
+			classPath = extraClassPath + ":" + classPath;
+
+		addAntCreateLeadingDirectories(out, build + "/.", dirs);
+
+		// make javac rule
+		String javas = "", prefix = "";
+		Iterator iter = files.iterator();
+		while (iter.hasNext()) {
+			String prereq = (String)iter.next();
+			if (!prereq.endsWith(".java"))
+				continue;
+			javas += prefix + prereq;
+			prefix = ",";
+		}
+
+		String optimize = (rule.getVarBool("DEBUG") ?
+				"debug" : "optimize") + "=\"on\"";
+		String javaVersion = rule.getVar("JAVAVERSION");
+		if (javaVersion == null)
+			javaVersion = "";
+		else
+			javaVersion = " source=\"" + javaVersion +
+				"\" target=\"" + javaVersion + "\"";
+		if (!javas.equals(""))
+			out.println("<javac " + optimize + javaVersion +
+					" classpath=\"" + classPath +
+					"\" srcdir=\".\" includes=\"" + javas +
+					"\" destdir=\"" + build + "\"/>");
+
+		// make copy rules and jar rule
+		List list = new ArrayList();
+		String lastBase = null;
+		iter = java2classFiles(files, rule.getCwd()).iterator();
+		while (iter.hasNext()) {
+			String realName = (String)iter.next();
+			String name = realName;
+			byte[] buffer = readFile(makePath(rule.getCwd(), realName));
+			if (buffer == null)
+				throw new FakeException("File "
+					+ realName + " does not exist.");
+			if (realName.endsWith(".class")) {
+				ByteCodeAnalyzer analyzer =
+					new ByteCodeAnalyzer(buffer);
+				name = analyzer.getPathForClass() + ".class";
+				if (realName.endsWith(name))
+					lastBase = realName.substring(0,
+						realName.length()
+						- name.length());
+				else
+					lastBase = null;
+			}
+			else {
+				if (lastBase != null &&
+						realName.startsWith(lastBase)) {
+					int len = lastBase.length();
+					name = realName.substring(len);
+				}
+				addAntCopy(out, realName, build + "/" + name,
+					dirs);
+			}
+			list.add(name);
+		}
+
+		String config = rule.getPluginsConfig();
+		if (config != null) {
+			addAntCopy(out, config, build + "/plugins.config",
+				dirs);
+			list.add("plugins.config");
+		}
+
+		String jar = "<jar destfile=\"" + rule.target +
+			"\" basedir=\"" + build + "\" " +
+			"includes=\"" + join(list, ",") + "\"";
+		String mainClass = rule.getMainClass();
+		if (mainClass == null)
+			out.println(jar + "/>");
+		else {
+			out.println(jar + ">");
+			out.println("\t<manifest>");
+			out.println("\t\t<attribute name=\"Main-Class\" value=\""
+				+ mainClass + "\"/>");
+			out.println("\t</manifest>");
+			out.println("</jar>");
+		}
+	}
+
 	static byte[] readFile(String fileName) {
 		try {
 			if (fileName.startsWith("jar:file:")) {
@@ -3307,6 +3426,7 @@ public class Fake {
 		}
 		out.println("<project name=\"Fiji\" default=\""
 			+ parser.allRule.target + "\" basedir=\".\">");
+		out.println("\t<property name=\"build\" location=\"build\"/>");
 
 		List list = new ArrayList(parser.allRules.keySet());
 		Collections.sort(list);
@@ -3328,6 +3448,8 @@ public class Fake {
 			 + depends + "\">");
 		if (rule instanceof Parser.All)
 			; /* do nothing */
+		else if (rule instanceof Parser.CompileJar)
+			printAntTarget(out, (Parser.CompileJar)rule);
 		else
 			System.err.println("Warning: ignore action for target "
 				 + rule);
