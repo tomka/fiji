@@ -82,3 +82,6 @@
 [submodule "swing-layout"]
 	path = swing-layout
 	url = contrib@pacific.mpi-cbg.de:/srv/git/swing-layout/.git
+[submodule "imageflow"]
+	path = imageflow
+	url = ssh://contrib@pacific.mpi-cbg.de/srv/git/imageflow.git

@@ -103,6 +103,7 @@ SUBMODULE_TARGETS=\
 	jars/visualap/.jar \
 	jars/jdom.jar \
 	jars/swing-layout.jar \
+	plugins/ImageFlow_.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -206,6 +207,7 @@ jars/appframework.jar <- appframework/
 jars/visualap/.jar <- visualap//
 jars/jdom.jar <- jdom/
 jars/swing-layout.jar <- swing-layout/
+plugins/ImageFlow_.jar <- imageflow/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -389,6 +391,7 @@ precompile-submodules[] <- \
 	precompiled/.jar \
 	precompiled/jdom.jar \
 	precompiled/swing-layout.jar \
+	precompiled/ImageFlow_.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
