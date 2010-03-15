@@ -99,6 +99,7 @@ SUBMODULE_TARGETS=\
 	jars/weka.jar \
 	jars/jython.jar \
 	jars/imglib.jar \
+	jars/appframework.jar \
 
 PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Clojure_Interpreter.jar \
@@ -198,6 +199,7 @@ jars/autocomplete.jar <- AutoComplete/
 jars/weka.jar <- weka/
 jars/jython.jar <- jython/
 jars/imglib.jar <- imglib/
+jars/appframework.jar <- appframework/
 
 # From source
 javaVersion(misc/Fiji.jar)=1.5
@@ -377,6 +379,7 @@ precompile-submodules[] <- \
 	precompiled/weka.jar \
 	precompiled/jython.jar \
 	precompiled/imglib.jar \
+	precompiled/appframework.jar \
 
 precompiled/ij.jar <- ij.jar
 precompiled/clojure.jar <- jars/clojure.jar
@@ -389,6 +392,7 @@ precompiled/autocomplete.jar <- jars/autocomplete.jar
 precompiled/weka.jar <- jars/weka.jar
 precompiled/jython.jar <- jars/jython.jar
 precompiled/imglib.jar <- jars/imglib.jar
+precompiled/appframework.jar <- jars/appframework.jar
 precompiled/* <- plugins/*
 
 precompile[] <- precompile-fiji precompile-fake precompile-submodules
