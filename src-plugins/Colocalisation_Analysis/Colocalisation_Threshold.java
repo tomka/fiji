@@ -866,7 +866,9 @@ public class Colocalisation_Threshold implements PlugIn {
 				ic.convertToGray8();
 				imp.changes = true;
 				ip1Stretch = imp.getStack().getProcessor(1);
-				//colocPixelsImageThresh1 = ch1threshmax * 256.0 / ip1.getMax();
+				int options = ij.measure.Measurements.MIN_MAX + ij.measure.Measurements.MODE;
+				ImageStatistics stats = ImageStatistics.getStatistics(ip1, options, null);
+				colocPixelsImageThresh1 = ch1threshmax * 256.0 / stats.max;
 			}
 			if (needsScaling2) {
 				ImagePlus imp = new ImagePlus("", ip2Stretch);
@@ -876,7 +878,9 @@ public class Colocalisation_Threshold implements PlugIn {
 				ic.convertToGray8();
 				imp.changes = true;
 				ip2Stretch = imp.getStack().getProcessor(1);
-				//colocPixelsImageThresh2 = ch2threshmax * 256.0 / ip2.getMax();
+				int options = ij.measure.Measurements.MIN_MAX + ij.measure.Measurements.MODE;
+				ImageStatistics stats = ImageStatistics.getStatistics(ip2, options, null);
+				colocPixelsImageThresh2 = ch2threshmax * 256.0 / stats.max;
 			}
 
 			//ipMask = imgMask.getProcessor(s);
