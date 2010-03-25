@@ -102,8 +102,8 @@ public class Colocalisation_Threshold implements PlugIn {
 
 		//	gd.addChoice("Mask channel", chooseMask, chooseMask[indexMask]);
 		gd.addChoice("Channel Combination", dualChannels, dualChannels[dualChannelIndex]);
-		gd.addCheckbox("Show Colocalised pixels",bShowLocalisation);
-		gd.addCheckbox("Use constant intensity for colocalised pixels",colocValConst);
+		gd.addCheckbox("Show Colocalized pixels",bShowLocalisation);
+		gd.addCheckbox("Use constant intensity for colocalized pixels",colocValConst);
 		gd.addCheckbox("Show Scatter plot",bScatter);
 		gd.addCheckbox("Include zero-zero pixels in threshold calculation",opt0);
 
@@ -230,11 +230,11 @@ public class Colocalisation_Threshold implements PlugIn {
 			gd2.addCheckbox("Pearson's for image below thresholds (should be ~0)",opt3b);
 			gd2.addCheckbox("Mander's original coefficients (threshold = 0)",opt4);
 			gd2.addCheckbox("Mander's using thresholds",opt5);
-			gd2.addCheckbox("Number of colocalised voxels",opt6);
-			gd2.addCheckbox("% Image volume colocalised",opt7);
-			gd2.addCheckbox("% Voxels colocalised",opt8);
-			gd2.addCheckbox("% Intensity colocalised",opt9);
-			gd2.addCheckbox("% Intensity above threshold colocalised",opt10);
+			gd2.addCheckbox("Number of colocalized voxels",opt6);
+			gd2.addCheckbox("% Image volume colocalized",opt7);
+			gd2.addCheckbox("% Voxels colocalized",opt8);
+			gd2.addCheckbox("% Intensity colocalized",opt9);
+			gd2.addCheckbox("% Intensity above threshold colocalized",opt10);
 			gd2.showDialog();
 			if (gd2.wasCanceled())	return false;
 
@@ -283,10 +283,12 @@ public class Colocalisation_Threshold implements PlugIn {
 		height = imp1.getHeight();
 		ipColoc = new ColorProcessor(rwidth,rheight);
 		ImageStack stackColoc = new ImageStack(rwidth,rheight);
+		MinMaxContainer minMax1 = getMinMax(ip1);
+		MinMaxContainer minMax2 = getMinMax(ip2);
 		double ch1threshmin=0;
-		double ch1threshmax=ip1.getMax();
+		double ch1threshmax=minMax1.max;
 		double ch2threshmin=0;
-		double  ch2threshmax=ip2.getMax();
+		double ch2threshmax=minMax2.max;
 		double pearsons1 = 0;
 		double pearsons2 = 0;
 		double pearsons3 = 0;
@@ -319,10 +321,10 @@ public class Colocalisation_Threshold implements PlugIn {
 		int Nch2gtT=0;
 
 		double oldMax2=0;
-		int ch1Max=(int)ip1.getMax();
-		int ch2Max=(int)ip2.getMax();
-		int ch1Min = (int)ip1.getMin();
-		int ch2Min = (int)ip2.getMin();
+		int ch1Max=(int)minMax1.max;
+		int ch2Max=(int)minMax2.max;
+		int ch1Min = (int)minMax1.min;
+		int ch2Min = (int)minMax2.min;
 		int ch1ROIMax=0;
 		int ch2ROIMax=0;
 
@@ -335,6 +337,12 @@ public class Colocalisation_Threshold implements PlugIn {
 		if (ch2Max<255) ch2Max=255;
 		double ch1Scaling = (double)255/(double)ch1Max;
 		double ch2Scaling = (double)255/(double)ch2Max;
+
+		// scaling for both channels should be the same so the scatterplot is not squewed
+		double chScaling = 1;
+		if (ch1Scaling>ch2Scaling) chScaling = ch1Scaling;
+		else chScaling = ch2Scaling;
+
 		boolean divByZero=false;
 
 		StringBuffer sb= new StringBuffer();
@@ -494,6 +502,7 @@ public class Colocalisation_Threshold implements PlugIn {
 
 		double m= num/denom;
 		double b = ch2Mean - m*ch1Mean ;
+
 		//IJ.showMessage("ch2 = "+ df2.format(m)+"*ch1 + "+df2.format(b));
 		//IJ.showStatus("Done");
 
@@ -601,15 +610,17 @@ public class Colocalisation_Threshold implements PlugIn {
 		ch2threshmax =Math.round(((double)ch1BestThresh*(double)m)+(double)b);
 
 		Nzero=0;
-		ipColoc = createColocalizedPixelsImage(imp1, imp2, ipMask,  ch1threshmax, ch2threshmax);
-		//IJ.showMessage(stackColoc.getWidth()+ "  -  " + ipColoc.getWidth());
-		stackColoc.addSlice("Correlation Plot", ipColoc);
+
+		imp1.setSlice(i);
+		imp2.setSlice(i);
+
+		stackColoc = createColocalizedPixelsImage(imp1, imp2, ipMask,  ch1threshmax, ch2threshmax);
+
+		// N=Ncoloc;
 
 		int sumColocCh1=0;
 		int sumColocCh2=0;
 		int Ncoloc=0;
-		imp1.setSlice(i);
-		imp2.setSlice(i);
 		sumXYm=0;
 		sumCh1gtT=0;
 		sumCh2gtT=0;
@@ -646,8 +657,8 @@ public class Colocalisation_Threshold implements PlugIn {
 						sumCh1total=sumCh1total+ch1;
 						sumCh2total=sumCh2total+ch2;
 						N++;
-						scaledXvalue = (int)((double)ch1*ch1Scaling);
-						scaledYvalue = 255-(int)((double)ch2*ch2Scaling);
+						scaledXvalue = (int)((double)ch1*chScaling);
+						scaledYvalue = 255-(int)((double)ch2*chScaling);
 						count = plot32.getPixel(scaledXvalue ,scaledYvalue );
 						count++;
 						plot32.putPixel(scaledXvalue ,scaledYvalue, count);
@@ -805,10 +816,12 @@ public class Colocalisation_Threshold implements PlugIn {
 
 
 		if (bShowLocalisation) {//ipColoc.resetMinAndMax();
-			new ImagePlus("Colocalised pixels", stackColoc).show();
+			new ImagePlus("Colocalized Pixel Map", stackColoc).show();
 		}
 
 		if (bScatter) {
+			if (imp2.getBitDepth() != 8)
+				b = b * 256.0 / minMax2.max;
 			plot16.resetMinAndMax();
 			for (int c=0; c<256; c++) {
 				plotY = ((double)c*m)+b;
@@ -818,10 +831,10 @@ public class Colocalisation_Threshold implements PlugIn {
 
 				plot16.putPixel(c, (int)255-(int)plotY,plotmax );
 
-				plot16.putPixel(c, 255-(int)(ch2threshmax*ch2Scaling), plotmax );
+				plot16.putPixel(c, 255-(int)(ch2threshmax*chScaling), plotmax );
 
 
-				plot16.putPixel((int)(ch1threshmax*ch1Scaling), c, plotmax );
+				plot16.putPixel((int)(ch1threshmax*chScaling), c, plotmax );
 
 
 				//plot16.putPixel(c, (int)255-(int)plotY2,plotmax2 );
@@ -838,7 +851,12 @@ public class Colocalisation_Threshold implements PlugIn {
 
 	}
 
-	private ColorProcessor createColocalizedPixelsImage(ImagePlus imp1, ImagePlus imp2, ImageProcessor ipMask, double ch1threshmax, double ch2threshmax) {
+	private MinMaxContainer getMinMax(ImageProcessor ip) {
+		ImageStatistics stats = ImageStatistics.getStatistics(ip, ij.measure.Measurements.MIN_MAX, null);
+		return new MinMaxContainer(stats.min, stats.max);
+	}
+
+	private ImageStack createColocalizedPixelsImage(ImagePlus imp1, ImagePlus imp2, ImageProcessor ipMask, double ch1threshmax, double ch2threshmax) {
 		double colocPixelsImageThresh1 = ch1threshmax;
 		double colocPixelsImageThresh2 = ch2threshmax;
 		ImageStack img1 = imp1.getStack();
@@ -850,8 +868,8 @@ public class Colocalisation_Threshold implements PlugIn {
 		int mask=0;
 		int colocInt=255;
 		int [] color  = new int [3];
-		ColorProcessor ipColoc
-			= new ColorProcessor(rwidth,rheight);
+		ImageStack stackColoc = new ImageStack(rwidth,rheight);
+		ColorProcessor ipColoc = new ColorProcessor(rwidth,rheight);
 		for (int s=1;s<=nslices; s++) {
 			IJ.showStatus("4/4: Creating colocalized pixels image. Slice = "+s +" Press 'Esc' to abort");
 			ip1 = img1.getProcessor(s);
@@ -860,28 +878,26 @@ public class Colocalisation_Threshold implements PlugIn {
 			ImageProcessor ip2Stretch = ip2.duplicate();
 			if (needsScaling1) {
 				ImagePlus imp = new ImagePlus("", ip1Stretch);
-				IJ.run(imp, "Enhance Contrast", "saturated=0.0001");
+				IJ.run(imp, "Enhance Contrast", "saturated=0.0");
 				ImageConverter ic = new ImageConverter(imp);
 				ic.setDoScaling(true);
 				ic.convertToGray8();
 				imp.changes = true;
 				ip1Stretch = imp.getStack().getProcessor(1);
-				int options = ij.measure.Measurements.MIN_MAX + ij.measure.Measurements.MODE;
-				ImageStatistics stats = ImageStatistics.getStatistics(ip1, options, null);
-				colocPixelsImageThresh1 = ch1threshmax * 256.0 / stats.max;
+				colocPixelsImageThresh1 = ch1threshmax * 255.0 / getMinMax(ip1).max;
 			}
 			if (needsScaling2) {
 				ImagePlus imp = new ImagePlus("", ip2Stretch);
-				IJ.run(imp, "Enhance Contrast", "saturated=0.0001");
+				IJ.run(imp, "Enhance Contrast", "saturated=0.0");
 				ImageConverter ic = new ImageConverter(imp);
 				ic.setDoScaling(true);
 				ic.convertToGray8();
 				imp.changes = true;
 				ip2Stretch = imp.getStack().getProcessor(1);
-				int options = ij.measure.Measurements.MIN_MAX + ij.measure.Measurements.MODE;
-				ImageStatistics stats = ImageStatistics.getStatistics(ip2, options, null);
-				colocPixelsImageThresh2 = ch2threshmax * 256.0 / stats.max;
+				colocPixelsImageThresh2 = ch2threshmax * 255.0 / getMinMax(ip2).max;
 			}
+
+			//System.out.println("Used thresholds: " + colocPixelsImageThresh1 + " " + colocPixelsImageThresh2);
 
 			//ipMask = imgMask.getProcessor(s);
 			ipColoc = new ColorProcessor(rwidth,rheight);
@@ -912,7 +928,20 @@ public class Colocalisation_Threshold implements PlugIn {
 					}
 				}
 			}
+			//IJ.showMessage(stackColoc.getWidth()+ "  -  " + ipColoc.getWidth());
+			stackColoc.addSlice("Correlation Plot", ipColoc);
 		}
-		return ipColoc;
+		return stackColoc;
+	}
+
+	private class MinMaxContainer {
+
+		public double min;
+		public double max;
+
+		public MinMaxContainer(double min, double max){
+			this.min = min;
+			this.max = max;
+		}
 	}
 }
