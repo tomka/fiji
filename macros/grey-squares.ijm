@@ -1,3 +1,4 @@
+// Adelson Checker-shadow illusion
 w = 700; h = 600;
 n = 5;
 grey1 = 50; grey3 = 200;
@@ -36,9 +37,21 @@ function edge2(i, j) {
 		getX(i, j + 1), getY(i, j + 1));
 }
 
+function diamond(i, j) {
+	x = getX(i, j) + (dxx + dyx) / 2;
+	y = getY(i, j) + (dxy + dyy) / 2;
+	r1 = 1 / 6; r2 = 1 / 4;
+	ow = dxx * r1; oh = dyy * r2;
+	makePolygon(x - dxx * r1, y - dxy * r1,
+		x - dyx * r2, y - dyy * r2,
+		x + dxx * r1, y + dxy * r1,
+		x + dyx * r2, y + dyy * r2);
+}
+
 newImage("Grey square optical illusion", "RGB White", w, h, 1);
 image = getImageID();
 
+setBatchMode(true);
 setForegroundColor(grey2, grey2, grey2);
 for (i = 0; i < n; i++)
 	for (j = ((i + 1) % 2); j < n; j += 2) {
@@ -61,19 +74,24 @@ for (i = 0; i < n; i += 2) {
 	run("Fill");
 }
 
+setForegroundColor(grey3+48, grey3+48, grey3+48);
 for (i = 0; i < n; i += 2) {
 	edge2(n, i);
 	run("Fill");
 }
+
 setForegroundColor(grey2, grey2, grey2);
 for (i = 0; i < n; i += 2) {
 	edge(i, 0);
 	run("Fill");
 }
+
+setForegroundColor(grey3, grey3, grey3);
 for (i = 1; i < n - 1; i += 2) {
 	edge2(n, i);
 	run("Fill");
 }
+
 setForegroundColor(grey1, grey1, grey1);
 for (i = 1; i < n; i += 2) {
 	edge(i, 0);
@@ -82,9 +100,6 @@ for (i = 1; i < n; i += 2) {
 setForegroundColor(grey4, grey4, grey4);
 square(n - 1, n - 1);
 run("Fill");
-edge2(n, n - 1);
-run("Fill");
-
 newImage("scratch pad", "RGB White", w, h, 1);
 scratch = getImageID();
 setBackgroundColor(grey3, grey3, grey3);
@@ -149,6 +164,14 @@ setForegroundColor(grey2, grey2, grey2);
 makeOval(x1, y1 - h1, x2 - x1, y2 - y1);
 run("Fill");
 
+setForegroundColor(grey1, grey1, grey1);
+selectImage(image);
+diamond(1, 4);
+run("Fill");
+diamond(2, 2);
+run("Fill");
+
 run("Select None");
 selectImage(scratch);
 close();
+setBatchMode(false);
