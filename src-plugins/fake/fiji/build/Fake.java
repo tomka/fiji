@@ -1405,13 +1405,27 @@ public class Fake {
 		class CompileJar extends Rule {
 			String configPath;
 			String classPath;
+            String stripPath = null;
 
-			CompileJar(String target, List prerequisites) {
+			CompileJar(String target, List prerequisites) throws FakeException {
 				super(target, uniq(prerequisites));
 				configPath = getPluginsConfig();
 				Iterator iter = prerequisites.iterator();
 				while (iter.hasNext()) {
 					String prereq = (String)iter.next();
+
+					if (prereq.contains("**") && stripPath == null) {
+						List files = new ArrayList();
+						File cwd = new File(".");
+						expandGlob(fijiHome + prereq, files, cwd, 0, null);
+						Iterator it = files.iterator();
+						if (!it.hasNext())
+							throw new FakeException("Prerequsite file not found: " + prereq);
+
+						//TODO filter out real strip path
+						stripPath = (String) it.next();
+					}
+
 					if (!prereq.endsWith(".jar/"))
 						continue;
 					prereq = stripSuffix(prereq, "/");
