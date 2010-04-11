@@ -1405,7 +1405,7 @@ public class Fake {
 		class CompileJar extends Rule {
 			String configPath;
 			String classPath;
-            String stripPath = null;
+			String stripPath = null;
 
 			CompileJar(String target, List prerequisites) throws FakeException {
 				super(target, uniq(prerequisites));
@@ -1414,16 +1414,20 @@ public class Fake {
 				while (iter.hasNext()) {
 					String prereq = (String)iter.next();
 
-					if (prereq.contains("**") && stripPath == null) {
-						List files = new ArrayList();
-						File cwd = new File(".");
-						expandGlob(fijiHome + prereq, files, cwd, 0, null);
-						Iterator it = files.iterator();
-						if (!it.hasNext())
-							throw new FakeException("Prerequsite file not found: " + prereq);
+					int wildcard = prereq.lastIndexOf("/**/");
+					if (stripPath == null) {
+						if (wildcard == 0
+						|| (wildcard > 0 && prereq.charAt(wildcard-1) != ' ')) {
+							List files = new ArrayList();
+							File cwd = new File(".");
+							expandGlob(fijiHome + prereq, files, cwd, 0, null);
+							Iterator it = files.iterator();
+							if (!it.hasNext())
+								throw new FakeException("Prerequsite file not found: " + prereq);
 
-						//TODO filter out real strip path
-						stripPath = (String) it.next();
+							//TODO filter out real strip path
+							stripPath = (String) it.next();
+						}
 					}
 
 					if (!prereq.endsWith(".jar/"))
@@ -2457,7 +2461,7 @@ public class Fake {
 				dest + "\"/>");
 	}
 
-	static void printAntTarget(PrintStream out, Parser.CompileJar rule)
+	void printAntTarget(PrintStream out, Parser.CompileJar rule)
 			throws FakeException {
 		Set dirs = new HashSet();
 		String build = "${build}/build." + rule.target;
@@ -2471,6 +2475,8 @@ public class Fake {
 
 		// make javac rule
 		String javas = "", prefix = "";
+
+		List files = rule.prerequisites;
 		Iterator iter = files.iterator();
 		while (iter.hasNext()) {
 			String prereq = (String)iter.next();
@@ -2497,7 +2503,14 @@ public class Fake {
 		// make copy rules and jar rule
 		List list = new ArrayList();
 		String lastBase = null;
-		iter = java2classFiles(files, rule.getCwd()).iterator();
+		File cwd = rule.getCwd();
+		File buildDir = rule.getBuildDir();
+		Set noCompile =
+			expandToSet(rule.getVar("NO_COMPILE"), cwd);
+		Set exclude =
+			expandToSet(rule.getVar("EXCLUDE"), cwd);
+		iter = java2classFiles(files, cwd, buildDir,
+			noCompile, exclude).iterator();
 		while (iter.hasNext()) {
 			String realName = (String)iter.next();
 			String name = realName;
@@ -3456,7 +3469,7 @@ public class Fake {
 		out.close();
 	}
 
-	void printAntTarget(PrintStream out, Parser.Rule rule) {
+	void printAntTarget(PrintStream out, Parser.Rule rule) throws FakeException {
 		String depends = join(rule.getPrerequisitesWithRules(), ",");
 		out.println("\t<target name=\"" + rule.target + "\" depends=\""
 			 + depends + "\">");
