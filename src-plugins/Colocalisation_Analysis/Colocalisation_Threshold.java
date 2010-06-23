@@ -717,12 +717,10 @@ public class Colocalisation_Threshold implements PlugIn {
 			stackColoc.addSlice("Correlation Plot", ipColoc);
 		}
 
-		// N=Ncoloc;
-
 		//IJ.showMessage("Totoal"+N+"   N0:"+Nzero+" Nc :"+ Ncoloc);
-		pearsons1 = sumXY - (sumX*sumY/N);
-		pearsons2 = sumXX - (sumX*sumX/N);
-		pearsons3 = sumYY - (sumY*sumY/N);
+		pearsons1 = sumXY - (sumX*sumY/Ncoloc);
+		pearsons2 = sumXX - (sumX*sumX/Ncoloc);
+		pearsons3 = sumYY - (sumY*sumY/Ncoloc);
 
 
 		//Pearsons for coloclaised volume
