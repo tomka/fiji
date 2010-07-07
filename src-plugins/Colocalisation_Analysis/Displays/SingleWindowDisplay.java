@@ -17,10 +17,12 @@ import javax.swing.JLabel;
 
 import mpicbg.imglib.image.display.imagej.ImageJFunctions;
 
+import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.ImageWindow;
 import ij.gui.NewImage;
 import ij.measure.ResultsTable;
+import ij.process.ImageProcessor;
 
 /**
  * This class displays the container contents in one single window
@@ -103,6 +105,10 @@ public class SingleWindowDisplay extends ImageWindow implements Display, ItemLis
 		}
 		
 		setup();
+		if (listOfImageResults.size() > 0) {
+			drawImageResult(listOfImageResults.get(0));
+		}
+		
 		this.show();
 	}
 	
@@ -122,13 +128,21 @@ public class SingleWindowDisplay extends ImageWindow implements Display, ItemLis
 			countLabel.setText("");
 		}
 	}
+	
+	protected void drawImageResult(Result.ImageResult result) {
+		ImagePlus imp = ImageJFunctions.displayAsVirtualStack( result.getData() );
+		this.imp.setProcessor(imp.getProcessor());
+		ImageProcessor ip = this.imp.getProcessor();
+		double max = BasicImageStats.getImageMax(result.getData());
+		this.imp.setDisplayRange(0.0, max);
+		IJ.run(this.imp, "Fire", null);
+		this.imp.updateAndDraw();
+	}
 
 	public void itemStateChanged(ItemEvent e) {
-		Result.ImageResult result = (Result.ImageResult)(e.getItem());
-		ImagePlus imp = ImageJFunctions.displayAsVirtualStack( result.getData() );
-		if (this.imp != imp){
-			this.imp = imp;
-			System.out.println("ouch!");
+		if (e.getStateChange() == ItemEvent.SELECTED) {
+			Result.ImageResult result = (Result.ImageResult)(e.getItem());
+			drawImageResult(result);
 		}
 	}
 }
