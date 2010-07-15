@@ -136,7 +136,7 @@ public abstract class Result {
 		double ch1BinWidth, ch2BinWidth;
 		// axis ranges
 		double xMin, xMax, yMin, yMax;
-		
+
 		public Histogram2DResult(String name, Image<T> data, 
 				double ch1BinWidth, double ch2BinWidth, 
 				String xLabel, String yLabel,
@@ -150,6 +150,30 @@ public abstract class Result {
 			this.xMax = xMax;
 			this.yMin = yMin;
 			this.yMax = yMax;
+		}
+		
+		double getXBinWidth() {
+			return ch1BinWidth;
+		}
+		
+		double getYBinWidth() {
+			return ch2BinWidth;
+		}
+		
+		public double getHistXMin() {
+			return xMin;
+		}
+
+		public double getHistXMax() {
+			return xMax;
+		}
+
+		public double getHistYMin() {
+			return yMin;
+		}
+
+		public double getHistYMax() {
+			return yMax;
 		}
 	}
 	
