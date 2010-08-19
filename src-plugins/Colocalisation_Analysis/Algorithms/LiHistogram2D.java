@@ -27,7 +27,7 @@ public class LiHistogram2D<T extends RealType<T>> extends Histogram2D<T> {
 	
 	// boolean to test which channel we are using for eg. Li 2D histogram y axis
 	boolean useCh1 = true; 
-	
+
 	public LiHistogram2D(boolean useCh1) {
 		this("Histogram 2D (Li)", useCh1);
 	}
@@ -86,9 +86,7 @@ public class LiHistogram2D<T extends RealType<T>> extends Histogram2D<T> {
 		}
 		liDiff = Math.abs(liMax - liMin);
 		
-		// get the histogram image
-		Result.ImageResult imgResult = getHistogramImage(container);
-		container.add(imgResult);
+		generateHistogramData(container);
 	}
 	
 	
@@ -126,6 +124,7 @@ public class LiHistogram2D<T extends RealType<T>> extends Histogram2D<T> {
 			return (yBins - 1) - (int)(ch2Val * ch2BinWidth);
 	}
 	
+	@Override
 	protected double getXMin(DataContainer container) {
 		return swapChannels ? (useCh1 ? container.getMinCh1(): container.getMinCh2()) : liMin;
 	}
