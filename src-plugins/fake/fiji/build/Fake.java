@@ -14,6 +14,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.ByteArrayInputStream;
+import java.io.FileReader;
+import java.io.Reader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -141,6 +143,16 @@ public class Fake {
 		if (!new File(jythonJar).exists())
 			jythonJar = fijiHome + "/precompiled/jython.jar";
 		getClassLoader(jythonJar);
+	}
+
+	protected static void discoverBeanshell() throws IOException {
+		String bshJar = fijiHome + "/jars/bsh.jar";
+		if (!new File(bshJar).exists()) {
+			bshJar = fijiHome + "/jars/bsh-2.0b4.jar";
+			if (!new File(bshJar).exists())
+				bshJar = fijiHome + "/precompiled/bsh.jar";
+		}
+		getClassLoader(bshJar);
 	}
 
 	protected static void discoverJavac() throws IOException {
@@ -627,6 +639,14 @@ public class Fake {
 			return -1;
 		}
 
+		public boolean isVarName(String key, String name) {
+			if (key == null || name == null)
+				return false;
+			key = key.toUpperCase();
+			name = name.toUpperCase();
+			return key.equals(name) || key.startsWith(name + "(");
+		}
+
 		public int getVariableNameEnd(String value, int offset) {
 			while (offset < value.length()) {
 				char c = value.charAt(offset);
@@ -686,6 +706,7 @@ public class Fake {
 
 		public void setVariable(String key, String value)
 				throws FakeException {
+			String origValue = value;
 			int paren = key.indexOf('(');
 			String name = (paren < 0 ? key :
 				key.substring(0, paren)).toUpperCase();
@@ -695,7 +716,7 @@ public class Fake {
 				return;
 			}
 
-			if (name.equals("CLASSPATH"))
+			if (isVarName(name, "CLASSPATH"))
 				value = prefixPaths(cwd, value, true);
 
 			value = expandVariables(value, paren < 0 ? null :
@@ -703,7 +724,7 @@ public class Fake {
 
 			if (value.indexOf('*') >= 0 ||
 					value.indexOf('?') >= 0) {
-				String separator = name.equals("CLASSPATH") ?
+				String separator = isVarName(name, "CLASSPATH") ?
 					":" : " ";
 				List files = new ArrayList();
 				StringTokenizer tokenizer = new
@@ -726,6 +747,10 @@ public class Fake {
 						quoteArg((String)iter.next());
 			}
 
+			String origName = name.toUpperCase() + "_UNEXPANDED"
+				+ (paren < 0 ? "" : key.substring(paren));
+			if (!variables.containsKey(origName))
+				variables.put(origName, origValue);
 			name = name.toUpperCase() + (paren < 0 ?
 				"" : key.substring(paren));
 			variables.put(name, value);
@@ -782,6 +807,7 @@ public class Fake {
 				String key = (String)iter.next();
 				int paren = key.indexOf('(');
 				if (paren < 0 || !key.endsWith(")") ||
+						key.startsWith("ENVOVERRIDES_UNEXPANDED(") ||
 						key.startsWith("ENVOVERRIDES("))
 					continue;
 				String name = key.substring(paren + 1,
@@ -1163,6 +1189,9 @@ public class Fake {
 			}
 
 			public File getBuildDir() {
+				String prebuilt = getVar("prebuiltdir");
+				if (prebuilt != null)
+					return new File(makePath(cwd, prebuilt));
 				String dir = getVar("builddir");
 				if (dir == null || dir.equals(""))
 					return null;
@@ -1416,6 +1445,7 @@ public class Fake {
 				if (value == null)
 					return null;
 
+				// Skip empty elements
 				String result = "";
 				StringTokenizer tokenizer =
 					new StringTokenizer(value,
@@ -1484,8 +1514,8 @@ public class Fake {
 
 			public String getVar(String var) {
 				String value = super.getVar(var);
-				if (var.toUpperCase().equals("CLASSPATH")) {
-					if( classPath != null ) {
+				if (isVarName(value, "CLASSPATH")) {
+					if (classPath != null) {
 						return (value == null) ? classPath
 							: (value + ":" + classPath);
 					}
@@ -1505,8 +1535,8 @@ public class Fake {
 					expandToSet(getVar("NO_COMPILE"), cwd);
 				Set exclude =
 					expandToSet(getVar("EXCLUDE"), cwd);
-				compileJavas(prerequisites, buildDir, exclude,
-					noCompile);
+				if (getVar("PREBUILTDIR") == null)
+					compileJavas(prerequisites, buildDir, exclude, noCompile);
 				List files = java2classFiles(prerequisites,
 					cwd, buildDir, exclude, noCompile);
 				if (getVarBool("includeSource"))
@@ -2018,7 +2048,14 @@ public class Fake {
 			String path = parentPath + names[i];
 			if (starstar && names[i].startsWith("."))
 				continue;
-			if (names[i].equals(".git") || names[i].endsWith(".swp")
+			if (names[i].equals(".git")
+					|| names[i].equals(".DS_Store")
+					|| names[i].equals(".classpath")
+					|| names[i].equals(".project")
+					|| names[i].equals(".settings")
+					|| names[i].equals(".directory")
+					|| names[i].endsWith(".form")
+					|| names[i].endsWith(".swp")
 					|| names[i].endsWith(".swo")
 					|| names[i].endsWith("~"))
 				continue;
@@ -2642,11 +2679,22 @@ public class Fake {
 		if (args[0].endsWith(".py")) {
 			String args0orig = args[0];
 			args[0] = makePath(dir, args[0]);
-			if (executePython(args))
+			if (executePython(args, out, err))
 				return;
 			if (verbose)
 				err.println("Falling back to Python ("
 					+ "Jython was not found in classpath)");
+			args[0] = args0orig;
+		}
+
+		if (args[0].endsWith(".bsh")) {
+			String args0orig = args[0];
+			args[0] = makePath(dir, args[0]);
+			if (executeBeanshell(args, out, err))
+				return;
+			if (verbose)
+				err.println("Falling back to calling it with BeanShell ("
+					+ "bsh.jar was not found in classpath)");
 			args[0] = args0orig;
 		}
 
@@ -2710,9 +2758,9 @@ public class Fake {
 
 
 	protected static Constructor jythonCreate;
-	protected static Method jythonExec, jythonExecfile;
+	protected static Method jythonExec, jythonExecfile, jythonSetOut, jythonSetErr;
 
-	protected static boolean executePython(String[] args)
+	protected static boolean executePython(String[] args, PrintStream out, PrintStream err)
 			throws FakeException {
 		if (jythonExecfile == null) try {
 			discoverJython();
@@ -2725,6 +2773,9 @@ public class Fake {
 			jythonExec = main.getMethod("exec", argsType);
 			argsType = new Class[] { args[0].getClass() };
 			jythonExecfile = main.getMethod("execfile", argsType);
+			argsType = new Class[] { OutputStream.class };
+			jythonSetOut = main.getMethod("setOut", argsType);
+			jythonSetErr = main.getMethod("setErr", argsType);
 		} catch (Exception e) {
 			return false;
 		}
@@ -2732,6 +2783,8 @@ public class Fake {
 		try {
 			Object instance =
 				jythonCreate.newInstance(new Object[] { });
+			jythonSetOut.invoke(instance, new Object[] { out });
+			jythonSetErr.invoke(instance, new Object[] { err });
 			String init = "import sys\n" +
 				"sys.argv = [";
 			for (int i = 0; i < args.length; i++)
@@ -2747,6 +2800,45 @@ public class Fake {
 		} catch (InvocationTargetException e) {
 			e.getTargetException().printStackTrace();
 			throw new FakeException("Jython failed");
+		} catch (Exception e) {
+			return false;
+		}
+		return true;
+	}
+
+	protected static Constructor bshCreate;
+	protected static Method bshEvalString, bshEvalReader, bshSet;
+
+	protected static boolean executeBeanshell(String[] args, PrintStream out, PrintStream err)
+			throws FakeException {
+		if (bshCreate == null) try {
+			discoverBeanshell();
+			ClassLoader loader = getClassLoader();
+			String className = "bsh.Interpreter";
+			Class main = loader.loadClass(className);
+			Class[] argsType = new Class[] { Reader.class, PrintStream.class, PrintStream.class, boolean.class };
+			bshCreate = main.getConstructor(argsType);
+			argsType = new Class[] { String.class };
+			bshEvalString = main.getMethod("eval", argsType);
+			argsType = new Class[] { Reader.class };
+			bshEvalReader = main.getMethod("eval", argsType);
+			argsType = new Class[] { String.class, Object.class };
+			bshSet = main.getMethod("set", argsType);
+		} catch (Exception e) {
+			return false;
+		}
+
+		try {
+			Object instance =
+				bshCreate.newInstance(new Object[] { (Reader)null, out, err, Boolean.FALSE });
+			String path = args[0];
+			String[] bshArgs = new String[args.length - 1];
+			System.arraycopy(args, 1, bshArgs, 0, bshArgs.length);
+			bshSet.invoke(instance, new Object[] { "bsh.args", bshArgs });
+			bshEvalReader.invoke(instance, new Object[] { new FileReader(path) });
+		} catch (InvocationTargetException e) {
+			e.getTargetException().printStackTrace();
+			throw new FakeException("Beanshell failed");
 		} catch (Exception e) {
 			return false;
 		}

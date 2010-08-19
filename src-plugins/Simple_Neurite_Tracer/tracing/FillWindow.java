@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -33,6 +33,7 @@ import ij.io.*;
 import javax.swing.*;
 
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -51,6 +52,9 @@ import java.awt.Insets;
 
 import java.util.HashSet;
 import java.util.Iterator;
+
+import java.io.File;
+import java.io.IOException;
 
 public class FillWindow extends JFrame implements PathAndFillListener, ActionListener, ItemListener, FillerProgressCallback {
 
@@ -89,6 +93,8 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 
 	JButton saveFill;
 	JButton discardFill;
+
+	JButton exportAsCSV;
 
 	public void setControlsEnabled( boolean enable ) {
 
@@ -165,9 +171,13 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 		c.gridy = 0;
 		c.insets = new Insets( 8, 8, 1, 8 );
 		c.weightx = 1;
-		c.fill = GridBagConstraints.HORIZONTAL;
+		c.weighty = 1;
+		c.fill = GridBagConstraints.BOTH;
 
 		add( scrollPane, c );
+
+		c.weightx = 0;
+		c.weighty = 0;
 
 		{
 			JPanel fillListCommandsPanel = new JPanel();
@@ -199,7 +209,6 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			cf.gridx = 0;
 			cf.gridy = 0;
 			cf.gridwidth = 4;
-			cf.weightx = 1;
 			cf.anchor = GridBagConstraints.LINE_START;
 			cf.fill = GridBagConstraints.HORIZONTAL;
 			fillStatus = new JLabel("(Not filling at the moment.)");
@@ -209,7 +218,6 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			thresholdField.addActionListener(this);
 			cf.gridx = 0;
 			cf.gridy = 1;
-			cf.weightx = 0;
 			cf.gridwidth = 2;
 			cf.fill = GridBagConstraints.NONE;
 			fillingOptionsPanel.add(thresholdField,cf);
@@ -260,40 +268,45 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 			cf.anchor = GridBagConstraints.LINE_START;
 			fillingOptionsPanel.add(transparent,cf);
 
+			c.gridx = 0;
+			++ c.gridy;
+			c.insets = new Insets( 8, 8, 8, 8 );
+			c.fill = GridBagConstraints.NONE;
+			c.anchor = GridBagConstraints.LINE_START;
+			add(fillingOptionsPanel,c);
+
+
 			{
 				fillControlPanel = new JPanel();
-				fillControlPanel.setLayout(new BorderLayout());
+				fillControlPanel.setLayout(new FlowLayout());
 
 				pauseOrRestartFilling = new JButton("Pause");
 				currentlyFilling = true;
 				pauseOrRestartFilling.addActionListener(this);
-				fillControlPanel.add(pauseOrRestartFilling,BorderLayout.WEST);
+				fillControlPanel.add(pauseOrRestartFilling);
 
 				saveFill = new JButton("Save Fill");
 				saveFill.addActionListener(this);
-				fillControlPanel.add(saveFill,BorderLayout.CENTER);
+				fillControlPanel.add(saveFill);
 
 				discardFill = new JButton("Cancel Fill");
 				discardFill.addActionListener(this);
-				fillControlPanel.add(discardFill,BorderLayout.EAST);
+				fillControlPanel.add(discardFill);
 
-				cf.gridx = 0;
-				cf.gridy = 6;
-				cf.gridwidth = 3;
-				cf.fill = GridBagConstraints.HORIZONTAL;
-				cf.anchor = GridBagConstraints.LINE_START;
+				c.gridx = 0;
+				++ c.gridy;
+				c.fill = GridBagConstraints.HORIZONTAL;
+				c.anchor = GridBagConstraints.CENTER;
 
-				fillingOptionsPanel.add(fillControlPanel,cf);
+				add(fillControlPanel,c);
 			}
 
-			c.gridx = 0;
 			++ c.gridy;
-			c.insets = new Insets( 8, 8, 8, 8 );
-			add(fillingOptionsPanel,c);
+			c.fill = GridBagConstraints.NONE;
+			exportAsCSV = new JButton("Export as CSV");
+			exportAsCSV.addActionListener(this);
+			add(exportAsCSV,c);
 		}
-
-		deleteFills.addActionListener(this);
-		reloadFill.addActionListener(this);
 	}
 
 	public void setPathList( String [] pathList, Path justAdded, boolean expandAll ) { }
@@ -335,7 +348,7 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 
 			plugin.setFillThreshold( maxThresholdValue );
 
-		} else if( source == setThreshold ) {
+		} else if( source == setThreshold || source == thresholdField ) {
 
 			try {
 				double t = Double.parseDouble( thresholdField.getText() );
@@ -364,6 +377,37 @@ public class FillWindow extends JFrame implements PathAndFillListener, ActionLis
 		} else if( source == view3D ) {
 
 			plugin.viewFillIn3D( ! maskNotReal.isSelected() );
+
+		} else if( source == exportAsCSV ) {
+
+			SaveDialog sd = new SaveDialog("Export fill summary as...",
+						       "fills",
+						       ".csv");
+
+			String savePath;
+			if(sd.getFileName()==null) {
+				return;
+			}
+
+			File saveFile = new File( sd.getDirectory(),
+						  sd.getFileName() );
+			if ((saveFile!=null)&&saveFile.exists()) {
+				if (!IJ.showMessageWithCancel(
+					    "Export data...", "The file "+
+					    saveFile.getAbsolutePath()+" already exists.\n"+
+					    "Do you want to replace it?"))
+					return;
+			}
+
+			IJ.showStatus("Exporting CSV data to "+saveFile.getAbsolutePath());
+
+			try {
+				pathAndFillManager.exportFillsAsCSV( saveFile );
+
+			} catch( IOException ioe) {
+				IJ.error("Saving to "+saveFile.getAbsolutePath()+" failed");
+				return;
+			}
 
 		} else {
 			IJ.error("BUG: FillWindow received an event from an unknown source");

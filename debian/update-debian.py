@@ -1,4 +1,4 @@
-#!/usr/bin/python2.5
+#!/usr/bin/python2.6
 
 import os
 import sys
@@ -19,6 +19,17 @@ from subprocess import call, check_call, Popen, PIPE
 #   vecmath.jar =>          libvecmath-java
 #   libj3dcore-ogl.so =>    libjava3d-jni
 #   libj3dcore-ogl-cg.so => [missing - probably not needed?]
+
+# We can't expect any of this to work without the basic build
+# dependencies for the Debian package in place.  (It might look odd
+# having this run every time, sometimes with the git committed
+# dependencies and sometimes with the rebuilt control file, but in
+# either case it's an error to be missing any build dependency.)
+#
+# FIXME: keep the build dependencies in a separate file, make sure
+# that they're committed in the git version as well.
+
+check_call(["dpkg-checkbuilddeps","debian/control"])
 
 build_dependencies = [ "debhelper (>= 5)",
                        "gcc",
@@ -263,7 +274,7 @@ os.chdir(source_directory)
 
 if options.add_changelog_template:
     suggest_new_version = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    git_rev = Popen(["git","rev-parse","HEAD"],stdout=PIPE).communicate()[0].strip()
+    git_rev = Popen(["git","rev-parse","--verify","HEAD"],stdout=PIPE).communicate()[0].strip()
     fp = open("debian/changelog")
     old_changelog = fp.read()
     fp.close()
@@ -426,7 +437,7 @@ if options.clean:
 
     # Also remove submodules which are now provided by external dependencies:
     to_remove.append("batik")
-    to_remove.append("weka")
+    # to_remove.append("weka") # Actually we need a more recent weka
     to_remove.append("java/linux")
     to_remove.append("java/linux-amd64")
     to_remove.append("java/macosx-java3d")
@@ -447,7 +458,7 @@ if options.clean:
     to_remove.append("jars/ant*.jar")
     to_remove.append("jars/batik.jar")
     to_remove.append("jars/junit*.jar")
-    to_remove.append("jars/weka.jar")
+    # to_remove.append("jars/weka.jar")
 
     for f in to_remove:
         call(["rm -rf "+f],shell=True)
@@ -464,8 +475,8 @@ if options.clean:
             continue
         if re.search("TransformJ_",line):
             continue
-        if re.search("(^\s*jars|precompiled)/weka.jar",line):
-            continue
+        # if re.search("(^\s*jars|precompiled)/weka.jar",line):
+        #     continue
         if re.search("(^\s*jars|precompiled)/jython.jar",line):
             continue
         if re.search("(^\s*jars|precompiled)/clojure.jar",line):

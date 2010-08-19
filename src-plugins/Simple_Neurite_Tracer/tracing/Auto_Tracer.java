@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Auto Tracer".
@@ -336,11 +336,10 @@ public class Auto_Tracer extends ThreePanes implements PlugIn, PaneOwner, Search
 			if ( verbose ) System.out.print("  === Destinations: "+destinations.size()+" ");
 			if ( verbose ) System.out.flush();
 
-			for( Iterator<AutoPoint> it = destinations.iterator(); it.hasNext(); ) {
+			for( AutoPoint d : destinations ) {
 
 				if ( verbose ) System.out.print("    ");
 
-				AutoPoint d = it.next();
 				Path path = ast.getPathBack(d.x,d.y,d.z);
 
 				float [] rollingTubeness = new float[rollingLength];
@@ -425,10 +424,7 @@ public class Auto_Tracer extends ThreePanes implements PlugIn, PaneOwner, Search
 				// Now remove all the destinations
 				// genuinely found in this search:
 
-				for( Iterator<AutoPoint> itRemove = destinationsToPrune.iterator();
-				     itRemove.hasNext(); ) {
-
-					AutoPoint toRemove = itRemove.next();
+				for( AutoPoint toRemove : destinationsToPrune ) {
 
 					if ( verbose ) System.out.flush();
 

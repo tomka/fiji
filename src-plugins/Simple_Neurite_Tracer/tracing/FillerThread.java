@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -80,9 +80,7 @@ public class FillerThread extends SearchThread {
 
                 int i = 0;
 
-                for( Iterator<SearchNode> j = closed_from_start.iterator();
-                     j.hasNext(); ) {
-                        SearchNode current = j.next();
+                for( SearchNode current : closed_from_start ) {
                         /* if( current.g <= threshold ) { */
 			h.put( current, new Integer(i) );
 			a.add( current );
@@ -94,9 +92,7 @@ public class FillerThread extends SearchThread {
 
 		if (verbose) System.out.println("openAtOrAbove is: "+openAtOrAbove);
 
-                for( Iterator<SearchNode> j = open_from_start.iterator();
-                     j.hasNext(); ) {
-                        SearchNode current = j.next();
+		for( SearchNode current : open_from_start ) {
                         /* if( current.g <= threshold ) { */
 			h.put( current, new Integer(i) );
 			a.add( current );
@@ -172,8 +168,7 @@ public class FillerThread extends SearchThread {
 
 		ArrayList< SearchNode > tempNodes = new ArrayList< SearchNode >();
 
-                for( Iterator it = fill.nodeList.iterator(); it.hasNext(); ) {
-                        Fill.Node n = (Fill.Node)it.next();
+		for( Fill.Node n : fill.nodeList ) {
 
 			SearchNode s = new SearchNode( n.x,
 						       n.y,
@@ -243,9 +238,9 @@ public class FillerThread extends SearchThread {
 	public void setSourcePaths( Set<Path> newSourcePaths ) {
 		sourcePaths = new HashSet<Path>();
 		sourcePaths.addAll(newSourcePaths);
-		Iterator<Path> pi = newSourcePaths.iterator();
-		while( pi.hasNext() ) {
-			Path p = pi.next();
+		for( Path p : newSourcePaths ) {
+			if( p == null )
+				return;
                         for( int k = 0; k < p.size(); ++k ) {
                                 SearchNode f = new SearchNode( p.getXUnscaled(k),
                                                                p.getYUnscaled(k),
@@ -349,8 +344,7 @@ public class FillerThread extends SearchThread {
 
 		float minimumDistanceInOpen = p.g;
 
-		for (Iterator<SearchProgressCallback> j = progressListeners.iterator(); j.hasNext();) {
-			SearchProgressCallback progress = j.next();
+		for( SearchProgressCallback progress : progressListeners ) {
 			if( progress instanceof FillerProgressCallback ) {
 				FillerProgressCallback fillerProgress = (FillerProgressCallback)progress;
 				fillerProgress.maximumDistanceCompletelyExplored( this, minimumDistanceInOpen );

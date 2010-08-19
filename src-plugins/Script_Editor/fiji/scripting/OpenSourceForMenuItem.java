@@ -2,6 +2,8 @@ package fiji.scripting;
 
 import common.RefreshScripts;
 
+import fiji.IJ_Alt_Key_Listener;
+
 import fiji.util.MenuItemDiverter;
 
 import ij.IJ;
@@ -12,6 +14,16 @@ import javax.swing.JOptionPane;
 public class OpenSourceForMenuItem extends MenuItemDiverter {
 	public void run(String arg) {
 		super.run(arg);
+	}
+
+	public void setActions() {
+		super.setActions();
+		IJ.getInstance().toFront();
+		try {
+			IJ_Alt_Key_Listener.getOpener().run();
+		} catch (NullPointerException e) {
+			/* no menu opener available */
+		}
 	}
 
 	protected String getTitle() {

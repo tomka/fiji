@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -163,19 +163,14 @@ public class Path implements Comparable {
 	public void setChildren( Set<Path> pathsLeft ) {
 		// Set the children of this path in a breadth first fashion:
 		children.clear();
-		Iterator<Path> ci = somehowJoins.iterator();
-		while( ci.hasNext() ) {
-			Path c = ci.next();
+		for( Path c : somehowJoins ) {
 			if( pathsLeft.contains(c) ) {
 				children.add(c);
 				pathsLeft.remove(c);
 			}
 		}
-		ci = children.iterator();
-		while( ci.hasNext() ) {
-			Path c = ci.next();
+		for( Path c : children )
 			c.setChildren( pathsLeft );
-		}
 	}
 
 /*
@@ -237,9 +232,7 @@ public class Path implements Comparable {
 		   from other's somehowJoins and other from this's
 		   somehowJoins.
 		*/
-		Iterator<Path> i = somehowJoins.iterator();
-		while( i.hasNext() ) {
-			Path other = i.next();
+		for( Path other : somehowJoins ) {
 			if( other.startJoins != null && other.startJoins == this ) {
 				other.startJoins = null;
 				other.startJoinsPoint = null;
@@ -621,9 +614,7 @@ public class Path implements Comparable {
 	}
 
 	void unsetPrimaryForConnected( HashSet<Path> pathsExplored ) {
-		Iterator<Path> i = somehowJoins.iterator();
-		while( i.hasNext() ) {
-			Path p = i.next();
+		for( Path p : somehowJoins ) {
 			if( pathsExplored.contains(p) )
 				continue;
 			p.setPrimary(false);
@@ -665,9 +656,10 @@ public class Path implements Comparable {
 
 		g.setColor( c );
 
-		int pixel_size = (int)canvas.getMagnification();
-		if( pixel_size < 1 )
-			pixel_size = 1;
+		double magnification = canvas.getMagnification();
+		int pixel_size = magnification < 1 ? 1 : (int)magnification;
+		if( magnification >= 4 )
+			pixel_size = (int) (magnification / 2);
 
 		int spotExtra = pixel_size;
 		int spotDiameter = pixel_size * 3;
@@ -1817,6 +1809,10 @@ public class Path implements Comparable {
 		this.precise_z_positions = optimized_z.clone();
 	}
 
+	/** This toString() method shows details of the path which is
+            actually being displayed, not necessarily this path
+            object.  FIXME: this is probably horribly confusing. */
+
 	@Override
 	public String toString() {
 		if( useFitted )
@@ -1951,7 +1947,7 @@ public class Path implements Comparable {
 		}
 
 		// Is the (flat) color wrong?
-		if( realColor == null || ! realColor.equals(color) ) {
+		if( pathToUse.realColor == null || ! pathToUse.realColor.equals(color) ) {
 			pathToUse.removeFrom3DViewer(univ);
 			pathToUse.paths3DDisplay = paths3DDisplay;
 			pathToUse.addTo3DViewer(univ,color,colorImage);
@@ -2233,6 +2229,47 @@ public class Path implements Comparable {
 		else {
 			return ! useFitted;
 		}
+	}
+
+	/** The volume of each part of the fitted path most accurately
+	    would be the volume of a convex hull of two arbitrarily
+	    oriented and sized circles in space.  This is tough to
+	    work out analytically, and this precision isn't really
+	    warranted given the errors introduced in the fitting
+	    process, the tracing in the first place, etc.  So, this
+	    method produces an approximate volume assuming that the
+	    volume of each of these parts is that of a truncated cone,
+	    with circles of the same size (i.e. as if the circles had
+	    simply been reoriented to be parallel and have a common
+	    normal vector)
+
+	    For more accurate measurements of the volumes of a neuron,
+	    you should use the filling interface. */
+
+	public double getApproximateFittedVolume() {
+		if( ! hasCircles() ) {
+			return -1;
+		}
+
+		double totalVolume = 0;
+
+		for( int i = 0; i < points - 1; ++i ) {
+
+			double xdiff = precise_x_positions[i+1] - precise_x_positions[i];
+			double ydiff = precise_y_positions[i+1] - precise_y_positions[i];
+			double zdiff = precise_z_positions[i+1] - precise_z_positions[i];
+			double h = Math.sqrt(
+				xdiff * xdiff +
+				ydiff * ydiff +
+				zdiff * zdiff );
+			double r1 = radiuses[i];
+			double r2 = radiuses[i+1];
+			// See http://en.wikipedia.org/wiki/Frustum
+			double partVolume = (Math.PI * h * (r1*r1 + r2*r2 + r1*r2)) / 3.0;
+			totalVolume += partVolume;
+		}
+
+		return totalVolume;
 	}
 
 	/* This doesn't deal with the startJoins, endJoins or fitted

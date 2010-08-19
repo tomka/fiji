@@ -1,6 +1,6 @@
 /* -*- mode: java; c-basic-offset: 8; indent-tabs-mode: t; tab-width: 8 -*- */
 
-/* Copyright 2006, 2007, 2008, 2009 Mark Longair */
+/* Copyright 2006, 2007, 2008, 2009, 2010 Mark Longair */
 
 /*
   This file is part of the ImageJ plugin "Simple Neurite Tracer".
@@ -131,8 +131,9 @@ public class NeuriteTracerResultsDialog
 	Button sigmaWizard;
 
 	Button loadLabelsButton;
-
 	Button exportCSVButton;
+	Button makeLineStackButton;
+
 	Button showCorrespondencesToButton;
 
 	Button saveButton;
@@ -828,8 +829,12 @@ public class NeuriteTracerResultsDialog
 				exportCSVButton = new Button("Export as CSV");
 				exportCSVButton.addActionListener( this );
 
+				makeLineStackButton = new Button("Make Line Stack");
+				makeLineStackButton.addActionListener( this );
+
 				otherImportExportPanel.add(loadLabelsButton);
 				otherImportExportPanel.add(exportCSVButton);
+				otherImportExportPanel.add(makeLineStackButton);
 			}
 			add(otherImportExportPanel,c);
 
@@ -1072,6 +1077,14 @@ public class NeuriteTracerResultsDialog
 		} else if( source == loadLabelsButton ) {
 
 			plugin.loadLabels();
+
+		} else if( source == makeLineStackButton ) {
+
+			if( pathAndFillManager.size() == 0 ) {
+				IJ.error("There are no paths traced yet - the stack would be empty");
+			} else {
+				plugin.makePathVolume();
+			}
 
 		} else if( source == cancelSearch ) {
 

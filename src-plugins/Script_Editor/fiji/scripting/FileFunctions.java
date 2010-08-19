@@ -8,7 +8,11 @@ import ij.IJ;
 
 import ij.gui.GenericDialog;
 
+import ij.plugin.BrowserLauncher;
+
+import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -40,6 +44,9 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -47,8 +54,14 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import javax.swing.text.JTextComponent;
 
 public class FileFunctions {
 	protected TextEditor parent;
@@ -303,7 +316,7 @@ public class FileFunctions {
 	}
 
 	public boolean newPlugin(String name) {
-		String originalName = name;
+		String originalName = name.replace('_', ' ');
 
 		name = name.replace(' ', '_');
 		if (name.indexOf('_') < 0)
@@ -339,7 +352,7 @@ public class FileFunctions {
 				+ "import ij.process.ImageProcessor;\n"
 				+ "\n"
 				+ "public class " + name + " implements PlugInFilter {\n"
-				+ "\tImagePlus image;\n"
+				+ "\tprotected ImagePlus image;\n"
 				+ "\n"
 				+ "\tpublic int setup(String arg, ImagePlus image) {\n"
 				+ "\t\tthis.image = image;\n"
@@ -512,38 +525,43 @@ public class FileFunctions {
 		}
 	}
 
-	public void showDiff(File file) {
-		showDiffOrCommit(file, true);
+	public void showDiff(File file, File gitDirectory) {
+		showDiffOrCommit(file, gitDirectory, true);
 	}
 
-	public void commit(File file) {
-		showDiffOrCommit(file, false);
+	public void commit(File file, File gitDirectory) {
+		showDiffOrCommit(file, gitDirectory, false);
 	}
 
-	public void showDiffOrCommit(File file, boolean diffOnly) {
-		if (file == null)
+	public void showDiffOrCommit(File file, File gitDirectory, boolean diffOnly) {
+		if (file == null || gitDirectory == null)
 			return;
-		final File pluginRoot = getPluginRootDirectory(file);
+		boolean isInFijiGit = gitDirectory.equals(new File(System.getProperty("fiji.dir"), ".git"));
+		final File root = isInFijiGit ? getPluginRootDirectory(file) : gitDirectory.getParentFile();
 		final DiffView diff = new DiffView();
+		String configPath = System.getProperty("fiji.dir") + "/staged-plugins/"
+			+ root.getName() + ".config";
+		// only include .config file if gitDirectory is fiji.dir/.git
+		final String config = isInFijiGit && new File(configPath).exists() ? configPath : null;
 		try {
 			String[] cmdarray = {
-				"git", "diff", "--", ".",
-				System.getProperty("fiji.dir") + "/staged-plugins/"
-				+ pluginRoot.getName() + ".config"
+				"git", "diff", "--", "."
 			};
+			if (config != null)
+				cmdarray = append(cmdarray, config);
 			SimpleExecuter e = new SimpleExecuter(cmdarray,
-				diff, new DiffView.IJLog(), pluginRoot);
+				diff, new DiffView.IJLog(), root);
 		} catch (IOException e) {
 			IJ.handleException(e);
 			return;
 		}
 
 		if (diff.getChanges() == 0) {
-			error("No changes detected for " + pluginRoot);
+			error("No changes detected for " + root);
 			return;
 		}
 
-		final JFrame frame = new JFrame((diffOnly ? "Unstaged differences for " : "Commit ") + pluginRoot);
+		final JFrame frame = new JFrame((diffOnly ? "Unstaged differences for " : "Commit ") + root);
 		frame.setSize(640, diffOnly ? 480 : 640);
 		if (diffOnly)
 			frame.getContentPane().add(diff);
@@ -553,6 +571,8 @@ public class FileFunctions {
 			panel.setLayout(new GridBagLayout());
 			GridBagConstraints c = new GridBagConstraints();
 
+			Font monospaced = new Font("Monospaced", Font.PLAIN, 12);
+
 			c.anchor = GridBagConstraints.NORTHWEST;
 			c.gridx = c.gridy = 0;
 			c.weightx = c.weighty = 0;
@@ -561,6 +581,9 @@ public class FileFunctions {
 			panel.add(new JLabel("Subject:"), c);
 			c.weightx = c.gridx = 1;
 			final JTextField subject = new JTextField();
+			subject.setFont(monospaced);
+			subject.setColumns(76);
+			subject.getDocument().addDocumentListener(new LengthWarner(76, subject));
 			panel.add(subject, c);
 
 			c.weightx = c.gridx = 0; c.gridy = 1;
@@ -568,6 +591,9 @@ public class FileFunctions {
 			c.fill = GridBagConstraints.BOTH;
 			c.weightx = c.weighty = c.gridx = 1;
 			final JTextArea body = new JTextArea(20, 76);
+			body.setFont(monospaced);
+			body.setColumns(76);
+			body.getDocument().addDocumentListener(new TextWrapper(76));
 			panel.add(body, c);
 
 			c.gridy= 2;
@@ -593,17 +619,16 @@ public class FileFunctions {
 						return;
 					}
 
-					String config = System.getProperty("fiji.dir") + "/staged-plugins/"
-						+ pluginRoot.getName() + ".config";
 					String[] cmdarray = {
-						"git", "commit", "-s", "-F", "-", "--", ".",
-						new File(config).exists() ? config : "."
+						"git", "commit", "-s", "-F", "-", "--", "."
 					};
+					if (config != null)
+						cmdarray = append(cmdarray, config);
 					InputStream stdin = new ByteArrayInputStream(message.getBytes());
 					SimpleExecuter.LineHandler ijLog = new DiffView.IJLog();
 					try {
 						SimpleExecuter executer = new SimpleExecuter(cmdarray,
-							stdin, ijLog, ijLog, pluginRoot);
+							stdin, ijLog, ijLog, root);
 						if (executer.getExitCode() == 0)
 							frame.dispose();
 					} catch (IOException e2) {
@@ -614,6 +639,205 @@ public class FileFunctions {
 		}
 		frame.pack();
 		frame.setVisible(true);
+	}
+
+	public class LengthWarner implements DocumentListener {
+		protected int width;
+		protected JTextComponent component;
+		protected Color normal, warn;
+
+		public LengthWarner(int width, JTextComponent component) {
+			this.width = width;
+			this.component = component;
+			normal = component.getForeground();
+			warn = Color.red;
+		}
+
+		public void changedUpdate(DocumentEvent e) { }
+
+		public void insertUpdate(DocumentEvent e) {
+			updateColor();
+		}
+
+		public void removeUpdate(DocumentEvent e) {
+			updateColor();
+		}
+
+		public void updateColor() {
+			component.setForeground(component.getDocument().getLength() <= width ? normal : warn);
+		}
+	}
+
+	public class TextWrapper implements DocumentListener {
+		protected int width;
+
+		public TextWrapper(int width) {
+			this.width = width;
+		}
+
+		public void changedUpdate(DocumentEvent e) { }
+		public void insertUpdate(DocumentEvent e) {
+			final Document document = e.getDocument();
+			int offset = e.getOffset() + e.getLength();
+			if (offset <= width)
+				return;
+			try {
+				String text = document.getText(0, offset);
+				int newLine = text.lastIndexOf('\n');
+				if (offset - newLine <= width)
+					return;
+				int additional = 0;
+				while (offset - newLine > width) {
+					int remove = 0;
+					int space = text.lastIndexOf(' ', newLine + width);
+					if (space > 0) {
+						int first = space;
+						while (first > newLine + 1 && text.charAt(first - 1) == ' ')
+							first--;
+						remove = space + 1 - first;
+						newLine = first;
+					}
+					else
+						newLine += width;
+
+					final int removeCount = remove, at = newLine;
+					SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							try {
+								if (removeCount > 0)
+									document.remove(at, removeCount);
+								document.insertString(at, "\n", null);
+							} catch (BadLocationException e2) { /* ignore */ }
+						}
+					});
+				}
+			} catch (BadLocationException e2) { /* ignore */ }
+		}
+		public void removeUpdate(DocumentEvent e) { }
+	}
+
+	public class ScreenLineHandler implements SimpleExecuter.LineHandler {
+		public void handleLine(String line) {
+			parent.screen.insert(line + "\n", parent.screen.getDocument().getLength());
+		}
+	}
+
+	public static class GrepLineHandler implements SimpleExecuter.LineHandler {
+		protected static Pattern pattern = Pattern.compile("([A-Za-z]:[^:]*|[^:]+):([1-9][0-9]*):.*", Pattern.DOTALL);
+
+		public ErrorHandler errorHandler;
+		protected String directory;
+
+		public GrepLineHandler(JTextArea textArea, String directory) {
+			errorHandler = new ErrorHandler(textArea);
+			if (!directory.endsWith("/"))
+				directory += "/";
+			this.directory = directory;
+		}
+
+		public void handleLine(String line) {
+			Matcher matcher = pattern.matcher(line);
+			if (matcher.matches())
+				errorHandler.addError(directory + matcher.group(1), Integer.parseInt(matcher.group(2)), line);
+			else
+				errorHandler.addError(null, -1, line);
+		}
+	}
+
+	public void gitGrep(String searchTerm, File directory) {
+		GrepLineHandler handler = new GrepLineHandler(parent.screen, directory.getAbsolutePath());
+		try {
+			SimpleExecuter executer = new SimpleExecuter(new String[] {
+				"git", "grep", "-n", searchTerm
+			}, handler, handler, directory);
+			parent.errorHandler = handler.errorHandler;
+		} catch (IOException e) {
+			IJ.handleException(e);
+		}
+	}
+
+	public void openInGitweb(File file, File gitDirectory, int line) {
+		if (file == null || gitDirectory == null) {
+			error("No file or git directory");
+			return;
+		}
+		String url = getGitwebURL(file, gitDirectory, line);
+		if (url == null)
+			error("Could not get gitweb URL for " + file);
+		else
+			new BrowserLauncher().run(url);
+	}
+
+	public String git(File gitDirectory, File workingDirectory, String... args) {
+		try {
+			args = append(gitDirectory == null ? new String[] { "git" } :
+				new String[] { "git", "--git-dir=" + gitDirectory.getAbsolutePath()}, args);
+			SimpleExecuter gitConfig = new SimpleExecuter(args, workingDirectory);
+			if (gitConfig.getExitCode() == 0)
+				return stripSuffix(gitConfig.getOutput(), "\n");
+			parent.write(gitConfig.getError());
+		} catch (IOException e) {
+			parent.write(e.getMessage());
+		}
+		return null;
+	}
+
+	public String git(File gitDirectory, String... args) {
+		return git(gitDirectory, (File)null, args);
+	}
+
+	public String gitConfig(File gitDirectory, String key) {
+		return git(gitDirectory, "config", key);
+	}
+
+	public String getGitwebURL(File file, File gitDirectory, int line) {
+		String url = gitConfig(gitDirectory, "remote.origin.url");
+		if (url == null) {
+			String remote = gitConfig(gitDirectory, "branch.master.remote");
+			if (remote != null)
+				url = gitConfig(gitDirectory, "remote." + remote + ".url");
+			if (url == null)
+				return null;
+		}
+		if (url.startsWith("repo.or.cz:") || url.startsWith("ssh://repo.or.cz/")) {
+			int index = url.indexOf("/srv/git/") + "/srv/git/".length();
+			url = "http://repo.or.cz/w/" + url.substring(index);
+		}
+		else if (url.startsWith("git://repo.or.cz/"))
+			url = "http://repo.or.cz/w/" + url.substring("git://repo.or.cz/".length());
+		else {
+			url = stripSuffix(url, "/");
+			int slash = url.lastIndexOf('/');
+			if (url.endsWith("/.git"))
+				slash = url.lastIndexOf('/', slash - 1);
+			String project = url.substring(slash + 1);
+			if (!project.endsWith(".git"))
+				project += "/.git";
+			if (project.equals("imageja.git"))
+				project = "ImageJA.git";
+			url = "http://pacific.mpi-cbg.de/cgi-bin/gitweb.cgi?p=" + project;
+		}
+		String head = git(gitDirectory, "rev-parse", "--symbolic-full-name", "HEAD");
+		String path = git(null /* ls-files does not work with --git-dir */,
+			file.getParentFile(), "ls-files", "--full-name", file.getName());
+		if (url == null || head == null || path == null)
+			return null;
+		return url + ";a=blob;f=" + path + ";hb=" + head
+			+ (line < 0 ? "" : "#l" + line);
+	}
+
+	protected String[] append(String[] array, String item) {
+		String[] result = new String[array.length + 1];
+		System.arraycopy(array, 0, result, 0, array.length);
+		result[array.length] = item;
+		return result;
+	}
+
+	protected String[] append(String[] array, String[] append ) {
+		String[] result = new String[array.length + append.length];
+		System.arraycopy(array, 0, result, 0, array.length);
+		System.arraycopy(append, 0, result, array.length, append.length);
+		return result;
 	}
 
 	protected void addChangesActionLink(DiffView diff, String text, final String plugin, final int verboseLevel) {
@@ -685,12 +909,19 @@ public class FileFunctions {
 		}
 	}
 
+	protected String stripSuffix(String string, String suffix) {
+		if (string.endsWith(suffix))
+			return string.substring(0, string.length() - suffix.length());
+		return string;
+	}
+
 	protected boolean error(String message) {
 		JOptionPane.showMessageDialog(parent, message);
 		return false;
 	}
 
 	public static void main(String[] args) {
-		new FileFunctions(null).showPluginChangesSinceUpload("jars/javac.jar");
+		String root = System.getProperty("fiji.dir");
+		new FileFunctions(null).commit(new File(root + "/src-plugins/Script_Editor/fiji/scripting/TextEditor.java"), new File(root + "/.git"));
 	}
 }
