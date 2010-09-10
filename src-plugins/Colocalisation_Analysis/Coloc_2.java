@@ -6,11 +6,18 @@ import java.io.File;
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.image.ImagePlusAdapter;
 import mpicbg.imglib.type.numeric.RealType;
+import mpicbg.imglib.type.numeric.real.DoubleType;
+import mpicbg.imglib.type.ComparableType;
+import mpicbg.imglib.type.TypeConverter;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Roi;
 import ij.plugin.PlugIn;
+import imglib.mpicbg.imglib.cursor.special.TwinValueRangeCursor;
+import imglib.mpicbg.imglib.cursor.special.meta.AboveThresholdPredicate;
+import imglib.mpicbg.imglib.cursor.special.meta.BelowThresholdPredicate;
+import imglib.mpicbg.imglib.cursor.special.meta.Predicate;
 
 /**
  * A plugin which does colocalisation on two images.
@@ -93,6 +100,136 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 			new MandersCorrelation<T>()) );
 		userSelectedJobs.add( container.setHistogram2D(
 			new Histogram2D("hello")) );
+		
+		// performance test
+		Image<T> i1 = container.getSourceImage1();
+		Image<T> i2 = container.getSourceImage2();
+		PearsonsCorrelation pc = new PearsonsCorrelation(PearsonsCorrelation.Implementation.Fast);
+
+		int count = 200;
+		
+		double result = pc.fastPearsons(i1, i2);
+		long startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+	    	pc.fastPearsons(i1, i2);
+	    }
+		double mean = (System.currentTimeMillis() - startTime) / (double)count;
+
+		System.out.println( "Total fast (" + mean + "ms): " + result );
+		
+		result = pc.classicPearsons(container);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			pc.classicPearsons(container);
+	    }
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+
+		System.out.println( "Total classic  (" + mean + "ms): " + result );
+		
+		TwinValueRangeCursor<T> tvc = new TwinValueRangeCursor<T>(
+					i1.createCursor(), i2.createCursor());
+		
+		result = pc.fastPearsons(tvc);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			tvc.reset();
+			pc.fastPearsons(tvc);
+	    }
+		tvc.close();
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+
+		System.out.println( "Total cursor  (" + mean + "ms): " + result );
+		
+		// Below threshold:
+		
+		AutoThresholdRegression<T> autoThreshold = container.getAutoThreshold(); 
+		
+		try {
+			autoThreshold.execute(container);
+		}
+		catch (MissingPreconditionException e){
+			System.out.println("Exception occured in Algorithm preconditions: " + e.getMessage());
+		}
+	
+		result = pc.fastPearsons(i1, i2,
+				autoThreshold.getCh1MaxThreshold(),
+				autoThreshold.getCh2MaxThreshold(), false);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			pc.fastPearsons(i1, i2,
+					autoThreshold.getCh1MaxThreshold(),
+					autoThreshold.getCh2MaxThreshold(), false);
+	    }
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+
+		System.out.println( "Below fast  (" + mean + "ms): " + result );
+		
+		T t1 = i1.createType();
+		double threshold1 = autoThreshold.getCh1MaxThreshold();
+		if ( t1.getMinValue() > threshold1 )
+			t1.setReal( t1.getMinValue() );
+		else if (t1.getMaxValue() < threshold1)
+			t1.setReal( t1.getMaxValue() );
+		else
+			t1.setReal( threshold1 );
+		
+		T t2 = i2.createType();
+		double threshold2 = autoThreshold.getCh2MaxThreshold();
+		if ( t2.getMinValue() > threshold2 )
+			t2.setReal( t2.getMinValue() );
+		else if (t2.getMaxValue() < threshold2)
+			t2.setReal( t2.getMaxValue() );
+		else
+			t2.setReal( threshold2 );
+		
+		Predicate<T> p1 = new BelowThresholdPredicate<T>( t1 );
+		Predicate<T> p2 = new BelowThresholdPredicate<T>( t2 );
+		
+		tvc = new imglib.mpicbg.imglib.cursor.special.TwinValueRangeCursor<T>(
+				i1.createCursor(), i2.createCursor(), p1, p2);
+	
+		result = pc.fastPearsons(tvc);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			tvc.reset();
+			pc.fastPearsons(tvc);
+	    }
+		tvc.close();
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+		
+		System.out.println( "Below cursor  (" + mean + "ms): " + result );
+		
+		result = pc.fastPearsons(i1, i2,
+				autoThreshold.getCh1MaxThreshold(),
+				autoThreshold.getCh2MaxThreshold(), true);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			pc.fastPearsons(i1, i2,
+					autoThreshold.getCh1MaxThreshold(),
+					autoThreshold.getCh2MaxThreshold(), true);
+	    }
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+
+		System.out.println( "Above fast  (" + mean + "ms): " + result );
+		
+		p1 = new AboveThresholdPredicate<T>( t1 );
+		p2 = new AboveThresholdPredicate<T>( t2 );
+		
+		tvc = new imglib.mpicbg.imglib.cursor.special.TwinValueRangeCursor<T>(
+				i1.createCursor(), i2.createCursor(), p1, p2);
+	
+		result = pc.fastPearsons(tvc);
+		startTime = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			tvc.reset();
+			pc.fastPearsons(tvc);
+	    }
+		tvc.close();
+		mean = (System.currentTimeMillis() - startTime) / (double)count;
+		
+		System.out.println( "Above cursor  (" + mean + "ms): " + result );
+		
+		// end performance test
 		
 		try {
 			for (Algorithm a : userSelectedJobs){
