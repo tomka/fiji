@@ -68,6 +68,10 @@ public class AutoThresholdRegression<T extends RealType<T>> extends Algorithm<T>
 				
 			N++;
 		}
+		
+		// close the cursors
+		cursor1.close();
+		cursor2.close();
 
 		double ch1Variance = ch1MeanDiffSum / (N - 1);
 		double ch2Variance = ch2MeanDiffSum / (N - 1);
