@@ -11,6 +11,7 @@ import mpicbg.imglib.interpolation.Interpolator;
 import mpicbg.imglib.interpolation.InterpolatorFactory;
 import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
 import mpicbg.imglib.type.Type;
+import imglib.mpicbg.imglib.cursor.special.RoiShiftingLocalizableByDimCursor;
 
 /**
  * A RoiImage decorates an ImgLib Image in a way that cursors on it
@@ -94,23 +95,25 @@ public class RoiImage<T extends Type<T>> extends Image<T> {
 		LocalizableByDimCursor<T> cursor = super.createLocalizableByDimCursor();
 		return new RegionOfInterestCursor<T>(cursor, offset, size);
 	}
+
+	@Override
+	public LocalizableByDimCursor<T> createLocalizableByDimCursor() {
+		LocalizableByDimCursor<T> cursor = super.createLocalizableByDimCursor();
+		return new RoiShiftingLocalizableByDimCursor(cursor, offset);
+	}
+
+	@Override
+	public LocalizableByDimCursor<T> createLocalizableByDimCursor(
+			OutOfBoundsStrategyFactory<T> factory) {
+		LocalizableByDimCursor<T> cursor = super.createLocalizableByDimCursor( factory );
+		return new RoiShiftingLocalizableByDimCursor(cursor, offset);
+	}
 	
 	
 	/* Not implemented/needed methods follow */
 	
 	@Override
 	public LocalizablePlaneCursor<T> createLocalizablePlaneCursor() {
-		throw new UnsupportedOperationException("This method has not been implemented, yet.");
-	}
-
-	@Override
-	public LocalizableByDimCursor<T> createLocalizableByDimCursor() {
-		throw new UnsupportedOperationException("This method has not been implemented, yet.");
-	}
-
-	@Override
-	public LocalizableByDimCursor<T> createLocalizableByDimCursor(
-			OutOfBoundsStrategyFactory<T> factory) {
 		throw new UnsupportedOperationException("This method has not been implemented, yet.");
 	}
 
