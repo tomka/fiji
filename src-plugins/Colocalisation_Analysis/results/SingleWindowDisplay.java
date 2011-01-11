@@ -539,4 +539,8 @@ public class SingleWindowDisplay<T extends RealType<T>> extends ImageWindow impl
 	public void lostOwnership(Clipboard clipboard, Transferable contents) {
 		// nothing to do here
 	}
+	
+	public void link(List<ResultHandler<T>> handlers) {
+		// should soon be able to link other SingleWindowDisplays
+	}
 }

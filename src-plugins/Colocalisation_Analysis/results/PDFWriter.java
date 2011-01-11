@@ -36,7 +36,7 @@ public class PDFWriter<T extends RealType<T>> implements ResultHandler<T> {
 	// a static counter for this sessions created PDFs
 	static int succeededPrints = 0;
 	// show the size in pixels of the image
-	static boolean showSize=true;		
+	static boolean showSize=true;
 	// a reference to the data container
 	DataContainer<T> container;
 	PdfWriter writer;
@@ -203,5 +203,9 @@ public class PDFWriter<T extends RealType<T>> implements ResultHandler<T> {
 				succeededPrints++;
 			}
 		}
+	}
+	
+	public void link(List<ResultHandler<T>> handlers) {
+		// do nothing for linking to other handlers
 	}
 }

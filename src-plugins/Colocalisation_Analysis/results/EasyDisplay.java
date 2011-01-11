@@ -1,5 +1,7 @@
 package results;
 
+import java.util.List;
+
 import gadgets.DataContainer;
 import ij.IJ;
 import ij.ImagePlus;
@@ -81,5 +83,9 @@ public class EasyDisplay<T extends RealType<T>> implements ResultHandler<T> {
 	    // show the results
 		textWindow.setVisible(true);
 		IJ.selectWindow("Results");
+	}
+	
+	public void link(List<ResultHandler<T>> handlers) {
+		// nothing to do here
 	}
 }

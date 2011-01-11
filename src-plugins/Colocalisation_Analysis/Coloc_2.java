@@ -110,7 +110,11 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 	public void run(String arg0) {
 		if (showDialog()) {
 			for (MaskInfo mi : masks) {
-				colocalise(img1, img2, mi.roi, mi.mask, mi.boundingBox);
+				List <ResultHandler<T>> results = colocalise(img1, img2, mi.roi, mi.mask, mi.boundingBox);
+				
+				// do the actual results processing
+				for (ResultHandler<T> r : results)
+					r.process();
 			}
 		}
 	}
@@ -242,7 +246,8 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 	 * Call this method to run a whole colocalisation configuration,
 	 * all selected algorithms get run on the supplied images. You
 	 * can specitfy the data further by suppliing appropriate
-	 * information in the mask structure.
+	 * information in the mask structure. The different result handlers
+	 * created are returned as a result.
 	 * 
 	 * @param img1
 	 * @param img2
@@ -250,7 +255,7 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 	 * @param mask
 	 * @param maskBB
 	 */
-	public void colocalise(Image<T> img1, Image<T> img2, Rectangle roi,
+	public List <ResultHandler<T>> colocalise(Image<T> img1, Image<T> img2, Rectangle roi,
 			Image<T> mask, Image<T> maskBB) {
 		// create a new container for the selected images and channels
 		DataContainer<T> container;
@@ -326,10 +331,9 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 				r.handleImage (mask2);
 			}
 		}
-		// do the actual results processing
-		for (ResultHandler<T> r : listOfResultHandlers)
-			r.process();
-    }
+		
+		return listOfResultHandlers;
+	}
 
 	/**
 	* Adds the provided Algorithm to the list if it is not null.

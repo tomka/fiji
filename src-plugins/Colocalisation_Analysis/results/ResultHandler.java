@@ -1,5 +1,7 @@
 package results;
 
+import java.util.List;
+
 import mpicbg.imglib.image.Image;
 import mpicbg.imglib.type.numeric.RealType;
 import algorithms.Histogram2D;
@@ -29,4 +31,14 @@ public interface ResultHandler<T extends RealType<T>> {
 	 * windows or produce a final zip file.
 	 */
 	void process();
+	
+	/**
+	 * This method allows to handle information about the existence
+	 * of other result handlers. SingleWindow displays for instance
+	 * can link between each other and that allow synchronus changing
+	 * of gui components.
+	 * 
+	 * @param handlers a list of result handlers
+	 */
+	void link(List<ResultHandler<T>> handlers);
 }
