@@ -3,6 +3,7 @@ import ij.gui.*;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.*;
 import java.awt.*;
+import java.util.Arrays;
 
 
 /**
@@ -80,6 +81,12 @@ public class Stack_Focuser_ implements PlugInFilter
 	 * Focusing kernel size, implies square kernel
 	 */
 	protected int k_size;
+
+	/**
+	 * The number of slices each below and above a "best kernel" to
+	 * do a maximum projection with.
+	 */
+	protected int maximumProjectionLimit;
 	
 	/**
 	 * Index of the image type, {@link #BYTE}, {@link #SHORT}, {@link #FLOAT}, {@link #RGB}
@@ -153,6 +160,7 @@ public class Stack_Focuser_ implements PlugInFilter
 	 */
 	public int setup(String arg, ImagePlus imp) {
 		k_size = 11;
+		maximumProjectionLimit = 0;
 		if (arg.equalsIgnoreCase("about")) {
 			showAbout();
 			return DONE;
@@ -252,6 +260,7 @@ public class Stack_Focuser_ implements PlugInFilter
 			// show options
 			input_dialog = new GenericDialog("Stack Focuser");
 			input_dialog.addNumericField("Enter the n (>2) for n x n kernel:", k_size, 0);
+			input_dialog.addNumericField("Slices below and above kernel for maximum projection", maximumProjectionLimit, 0);
 			input_dialog.addCheckbox("Generate height map", create_map);
 			input_dialog.addCheckbox("R, G, and B come from same objects/structures", onefocus);
 			input_dialog.showDialog();
@@ -259,6 +268,7 @@ public class Stack_Focuser_ implements PlugInFilter
 				return;
 			// read options
 			k_size = (int)input_dialog.getNextNumber();
+			maximumProjectionLimit = (int)input_dialog.getNextNumber();
 			create_map = input_dialog.getNextBoolean();
 			onefocus = input_dialog.getNextBoolean();
 			if ( input_dialog.invalidNumber() || k_size<3 ) {
@@ -516,17 +526,22 @@ public class Stack_Focuser_ implements PlugInFilter
 			height_ip = new ByteProcessor(n_width, n_height);
 			scale = 255/n_slices;
 		}
-		//
+		/* Initialize arrays and fill it up with minimum values
+		 * for later comparisons in the maximum projection.
+		 */
 		switch (stackType)
 		{
 			case BYTE:
 				dest_pixels8 = new byte[n_dim];
+				Arrays.fill(dest_pixels8, (byte) 0);
 				break;
 			case SHORT:
 				dest_pixels16 = new short[n_dim];
+				Arrays.fill(dest_pixels16, (short) 0);
 				break;
 			case FLOAT:
 				dest_pixels32 = new float[n_dim];
+				Arrays.fill(dest_pixels32, 0f);
 				break;
 			default:
 				break;
@@ -537,6 +552,7 @@ public class Stack_Focuser_ implements PlugInFilter
 		IJ.showStatus("Pasting the new image...");
 		IJ.showProgress(0.0f);
 		int max_slice = 1;
+		int totalSlices = g_stack.getSize();
 		float[] curr_pixels;
 		for (int y=0; y<n_height; y++)
 		{
@@ -561,22 +577,49 @@ public class Stack_Focuser_ implements PlugInFilter
 				// if (create_map)
 				{
 					height_ip.putPixel(x, y, max_slice*scale);}
-				switch (stackType)
-				{
-					case BYTE:
-						orig_pixels8 = (byte[]) g_stack.getPixels(max_slice);
-						dest_pixels8[i] = orig_pixels8[copy_i];
-						break;
-					case SHORT:
-						orig_pixels16 = (short[]) g_stack.getPixels(max_slice);
-						dest_pixels16[i] = orig_pixels16[copy_i];
-						break;
-					case FLOAT:
-						orig_pixels32 = (float[]) g_stack.getPixels(max_slice);
-						dest_pixels32[i] = orig_pixels32[copy_i];
-						break;
-					default:
-						break;
+				/* Do a maximum projection with the found slice and
+				 * the n slices below and above it.
+				 */
+				final int numSlices = 2 * maximumProjectionLimit + 1;
+				for (int s=0; s<numSlices; s++) {
+					// start from the lower slices
+					final int slice = max_slice - maximumProjectionLimit + s;
+					// guard against running below or above stack
+					if (slice < 1 || slice > totalSlices)
+						continue;
+					// get the value from the original data
+					int origPixel, destPixel;
+					switch (stackType)
+					{
+						case BYTE:
+							orig_pixels8 = (byte[]) g_stack.getPixels(slice);
+							// int is needed for comparison, eliminate the sign bits
+							origPixel = orig_pixels8[copy_i] & 0xff;
+							destPixel = dest_pixels8[i] & 0xff;
+							// compare int, as operator is not only available for byte
+							if (origPixel > destPixel) {
+								dest_pixels8[i] = (byte) origPixel;
+							}
+							break;
+						case SHORT:
+							orig_pixels16 = (short[]) g_stack.getPixels(slice);
+							// int is needed for comparison, eliminate the sign bits
+							origPixel = orig_pixels16[copy_i] & 0xffff;
+							destPixel = dest_pixels16[i] & 0xffff;
+							// compare int, as operator is not only available for short
+							if (origPixel > destPixel)
+								dest_pixels16[i] = (short) origPixel;
+							break;
+						case FLOAT:
+							orig_pixels32 = (float[]) g_stack.getPixels(slice);
+							dest_pixels32[i] = Math.max(dest_pixels32[i],
+									orig_pixels32[copy_i]);
+							if (orig_pixels32[copy_i] > dest_pixels32[i])
+								dest_pixels32[i] = orig_pixels32[copy_i];
+							break;
+						default:
+							break;
+					}
 				}
 				IJ.showStatus("Pasting the new image...");
 				IJ.showProgress(1.0*i/n_dim);
