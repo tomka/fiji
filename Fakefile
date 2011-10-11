@@ -224,7 +224,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	plugins/Colour_Deconvolution.jar \
 	plugins/Dichromacy_.jar \
 	plugins/Threshold_Colour.jar \
-	plugins/Reconstruct_Reader.jar
+	plugins/Reconstruct_Reader.jar \
+	plugins/Stack_Focuser.jar
 
 all <- fiji $SUBMODULE_TARGETS $PLUGIN_TARGETS
 
@@ -337,6 +338,8 @@ libs[] <- jars/test-fiji.jar jars/zs.jar jars/VIB-lib.jar jars/Jama-1.0.2.jar \
 plugins/Record_Screen.jar <- src-plugins/Record_Screen/ src-plugins/Record_Screen/**/*
 
 plugins/Trainable_Segmentation.jar <- src-plugins/Trainable_Segmentation/**/*java src-plugins/Trainable_Segmentation/trainableSegmentation/images/*png src-plugins/Trainable_Segmentation/*
+
+plugins/Stack_Focuser.jar <- src-plugins/Stack_Focuser/*java
 
 mainClass(jars/Fiji.jar)=fiji.Main
 src-plugins/Fiji/icon.png[cp $PRE $TARGET] <- images/icon.png
@@ -468,6 +471,7 @@ CLASSPATH(plugins/Reconstruct_Reader.jar)=jars/ij.jar:plugins/TrakEM2_.jar
 CLASSPATH(plugins/Colour_Deconvolution.jar)=jars/ij.jar
 CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
+CLASSPATH(plugins/Stack_Focuser.jar)=jars/ij.jar
 
 # pre-Java5 generics ;-)
 
