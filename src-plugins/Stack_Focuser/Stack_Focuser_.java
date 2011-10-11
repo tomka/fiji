@@ -2,9 +2,11 @@ import ij.*;
 import ij.gui.*;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.*;
-import java.awt.*;
+import java.awt.Rectangle;
 import java.util.Arrays;
 
+import mpicbg.imglib.image.Image;
+import mpicbg.imglib.type.numeric.RealType;
 
 /**
  * 
@@ -64,7 +66,7 @@ import java.util.Arrays;
  * For a short but good reference on image analysis see
  * http://www.cee.hw.ac.uk/hipr/html/hipr_top.html
  */
-public class Stack_Focuser_ implements PlugInFilter
+public class Stack_Focuser_<T extends RealType<T>> implements PlugInFilter
 {
 	/**
 	 * ImageStacl object of the original image
@@ -450,7 +452,11 @@ public class Stack_Focuser_ implements PlugInFilter
 		// max_stack = null;
 
 	}
-	
+
+	protected Image<T> makeMaxStack(Image<T> g_stack) {
+		return null;
+	}
+
 	/**
 	 * Create a stack for max in the neighbourhood.
 	 * match input stack and the new one slice by slice.
