@@ -247,23 +247,25 @@ public class Stack_Focuser_ implements PlugInFilter
 
 	public void run(ImageProcessor ip)
 	{
-		// read options
 		// TODO allow for different x and y kern_size later
-                if (interact) {
-                    input_dialog = new GenericDialog("Options");
-                    input_dialog.addNumericField("Enter the n (>2) for n x n kernel:", k_size, 0);
-                    input_dialog.addCheckbox("Generate height map", create_map);
-                    input_dialog.addCheckbox("R, G, and B come from same objects/structures", onefocus);
-                    input_dialog.showDialog();
-                    if (input_dialog.wasCanceled()) return;
-                    k_size = (int)input_dialog.getNextNumber();
-                    create_map = input_dialog.getNextBoolean();
-                    onefocus = input_dialog.getNextBoolean();
-                    if ( input_dialog.invalidNumber() || k_size<3 ) {
-                        IJ.error("Invalid number or " +k_size+" is incorrect! ");
-                        return;
-                    }
-                }
+		if (interact) {
+			// show options
+			input_dialog = new GenericDialog("Stack Focuser");
+			input_dialog.addNumericField("Enter the n (>2) for n x n kernel:", k_size, 0);
+			input_dialog.addCheckbox("Generate height map", create_map);
+			input_dialog.addCheckbox("R, G, and B come from same objects/structures", onefocus);
+			input_dialog.showDialog();
+			if (input_dialog.wasCanceled())
+				return;
+			// read options
+			k_size = (int)input_dialog.getNextNumber();
+			create_map = input_dialog.getNextBoolean();
+			onefocus = input_dialog.getNextBoolean();
+			if ( input_dialog.invalidNumber() || k_size<3 ) {
+				IJ.error("Invalid number or " +k_size+" is incorrect! ");
+				return;
+			}
+		}
 		switch(type)
 		{
 			case BYTE: focused_ip = focusGreyStack(i_stack, BYTE); break;
