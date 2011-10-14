@@ -471,7 +471,7 @@ CLASSPATH(plugins/Reconstruct_Reader.jar)=jars/ij.jar:plugins/TrakEM2_.jar
 CLASSPATH(plugins/Colour_Deconvolution.jar)=jars/ij.jar
 CLASSPATH(plugins/Dichromacy_.jar)=jars/ij.jar
 CLASSPATH(plugins/Threshold_Colour.jar)=jars/ij.jar
-CLASSPATH(plugins/Stack_Focuser.jar)=jars/ij.jar
+CLASSPATH(plugins/Stack_Focuser.jar)=jars/ij.jar:jars/imglib.jar:jars/imglib-ij.jar:jars/imglib-algorithms.jar
 
 # pre-Java5 generics ;-)
 

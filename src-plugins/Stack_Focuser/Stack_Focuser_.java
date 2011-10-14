@@ -2,9 +2,27 @@ import ij.*;
 import ij.gui.*;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.*;
-import java.awt.*;
+import java.awt.Rectangle;
 import java.util.Arrays;
 
+import mpicbg.imglib.algorithm.fft.FourierConvolution;
+import mpicbg.imglib.algorithm.gauss.GaussianConvolution3;
+import mpicbg.imglib.algorithm.roi.MedianFilter;
+import mpicbg.imglib.algorithm.roi.StructuringElement;
+import mpicbg.imglib.container.array.ArrayContainerFactory;
+import mpicbg.imglib.cursor.Cursor;
+import mpicbg.imglib.cursor.LocalizableByDimCursor;
+import mpicbg.imglib.function.Converter;
+import mpicbg.imglib.function.RealTypeConverter;
+import mpicbg.imglib.image.Image;
+import mpicbg.imglib.image.ImageFactory;
+import mpicbg.imglib.image.ImagePlusAdapter;
+import mpicbg.imglib.image.display.imagej.ImageJFunctions;
+import mpicbg.imglib.outofbounds.OutOfBoundsStrategyFactory;
+import mpicbg.imglib.outofbounds.OutOfBoundsStrategyMirrorFactory;
+import mpicbg.imglib.type.numeric.RGBALegacyType;
+import mpicbg.imglib.type.numeric.RealType;
+import mpicbg.imglib.type.numeric.real.FloatType;
 
 /**
  * 
@@ -64,8 +82,12 @@ import java.util.Arrays;
  * For a short but good reference on image analysis see
  * http://www.cee.hw.ac.uk/hipr/html/hipr_top.html
  */
-public class Stack_Focuser_ implements PlugInFilter
+public class Stack_Focuser_<T extends RealType<T>> implements PlugInFilter
 {
+	// the original image that should be focused
+	protected Image<T> original;
+	// the focused image
+	protected Image<T> focused;
 	/**
 	 * ImageStacl object of the original image
 	 */
@@ -235,6 +257,7 @@ public class Stack_Focuser_ implements PlugInFilter
 		else
 			type = RGB;
 		i_stack = imp.getStack();
+		original = ImagePlusAdapter.wrap(imp);
 		o_width = imp.getWidth();
 		o_height = imp.getHeight();
 		o_dim = o_width * o_height;
@@ -276,6 +299,14 @@ public class Stack_Focuser_ implements PlugInFilter
 				return;
 			}
 		}
+
+		focused = focusImage(original);
+
+		if (focused != null) {
+			ImagePlus imp = ImageJFunctions.displayAsVirtualStack(focused);
+			imp.show();
+		}
+
 		switch(type)
 		{
 			case BYTE: focused_ip = focusGreyStack(i_stack, BYTE); break;
@@ -303,6 +334,35 @@ public class Stack_Focuser_ implements PlugInFilter
 			height_map.show();
 			height_map.updateAndDraw();
 		}
+	}
+
+	protected Image<T> focusImage(Image<T> image) {
+		IJ.showStatus("Processing image channels independently");
+
+		T type = image.createType();
+		// find out how many channels we operate on
+		if ( RealType.class.isInstance(type) ) {
+			// operate on single channel image
+			return focusSingleChannel(image);
+		} else if ( RGBALegacyType.class.isInstance(type) ) {
+			// operate on multi channel image
+			if (onefocus)
+				focusChannelsCombined(image);
+			else
+				focusChannelsSeparately(image);
+			return null;
+		} else {
+			IJ.log("Image type " + type.getClass() + " not supported!");
+			return null;
+		}
+	}
+
+	void focusChannelsCombined(Image<T> image) {
+
+	}
+
+	void focusChannelsSeparately(Image<T> image) {
+
 	}
 
 	/**
@@ -450,7 +510,87 @@ public class Stack_Focuser_ implements PlugInFilter
 		// max_stack = null;
 
 	}
-	
+
+	protected Image<T> focusSingleChannel(Image<T> image) {
+		Image<T> maxImage = makeMaxImage(image);
+		return createFocusedImage(image, maxImage);
+	}
+
+	/**
+	 * This method will go through the z-dimension of an image and
+	 * looks at each slice independently. An output image of the same
+	 * dimensions is created. For each pixel on each slice in the source
+	 * image it looks at its neighborhood and assigns the highest value
+	 * to the same pixel in the output image. The method expects an
+	 * image with 3 dimensions.
+	 *
+	 * @param image
+	 * @return
+	 */
+	protected Image<T> makeMaxImage(Image<T> image) {
+		IJ.showProgress(0.0f);
+		IJ.showStatus("Converting...");
+		// run median filter on the new one to get rid of some noise
+		IJ.showStatus("Running median filter...");
+		double meanFilerRadius = 1.5d;
+		MedianFilter<T> medianFilter = new MedianFilter<T>(image,
+				StructuringElement.createBall(image.getNumDimensions(),
+						meanFilerRadius));
+		//if (!medianFilter.checkInput()) {
+		//	IJ.log("Could not apply median filter, checkInput() failed!");
+		//	return null;
+		//}
+		if (!medianFilter.process()) {
+			IJ.log("Could not apply median filter, process() failed!");
+			return null;
+		}
+		Image<T> filteredImage = medianFilter.getResult();
+
+		// smooth the image with a gaussian
+		IJ.showStatus("Running gaussian filter...");
+		double[] scale = new double[image.getNumDimensions()];
+		Arrays.fill(scale, 2.0d);
+		Converter<T, FloatType> typeConverterIn =
+				new RealTypeConverter<T, FloatType>();
+		Converter<FloatType, T> typeConverterOut =
+				new RealTypeConverter<FloatType, T>();
+		ImageFactory<FloatType> imageFactoryIn =
+				new ImageFactory<FloatType>(new FloatType(),
+						new ArrayContainerFactory());
+		ImageFactory<T> imageFactoryOut = image.getImageFactory();
+		OutOfBoundsStrategyFactory<FloatType> smootherOobFactory =
+				new OutOfBoundsStrategyMirrorFactory<FloatType>();
+
+		GaussianConvolution3<T, FloatType, T> smoother
+		= new GaussianConvolution3<T, FloatType, T>(filteredImage, imageFactoryIn, imageFactoryOut,
+				smootherOobFactory, typeConverterIn, typeConverterOut, scale);
+		if ( smoother.checkInput() && smoother.process() ) {
+			filteredImage = smoother.getResult();
+		} else {
+			IJ.log("Could not apply gaussian convolution, process() failed!");
+			return null;
+		}
+
+		ImagePlus imp = ImageJFunctions.displayAsVirtualStack( filteredImage );
+		imp.show();
+
+		// iterate over image slices
+		LocalizableByDimCursor<T> cursor =
+				image.createLocalizableByDimCursor();
+		int nSlices = image.getDimension(2);
+
+		for (int z=0; z<nSlices; ++z) {
+			cursor.setPosition(z, 2);
+			IJ.showProgress( (float)z / (float)nSlices);
+		}
+
+		return null;
+	}
+
+	protected Image<T> createFocusedImage(Image<T> image, Image<T> maxImage) {
+		return null;
+	}
+
 	/**
 	 * Create a stack for max in the neighbourhood.
 	 * match input stack and the new one slice by slice.
@@ -802,6 +942,7 @@ public class Stack_Focuser_ implements PlugInFilter
 					"Patches a *focused* image\n"+
 					" from a stack of images \n"+
 					"corresponding to different focal planes\n"+
-					"\n Mikhail Umorin <mikeumo@sbcglobal.net>");
+					"\n Mikhail Umorin <mikeumo@sbcglobal.net>" +
+					"\n small changes by Tom Kazimiers <tom@voodoo-arts.net>");
 	}
 }
