@@ -262,7 +262,7 @@ public class Stack_Focuser_<T extends RealType<T>> implements PlugInFilter
 			// show options
 			input_dialog = new GenericDialog("Stack Focuser");
 			input_dialog.addNumericField("Enter the n (>2) for n x n kernel:", k_size, 0);
-			input_dialog.addNumericField("Slices below and above kernel for maximum projection", maximumProjectionLimit, 0);
+			input_dialog.addNumericField("Slices below and above pixel for maximum projection", maximumProjectionLimit, 0);
 			input_dialog.addCheckbox("Generate height map", create_map);
 			input_dialog.addCheckbox("R, G, and B come from same objects/structures", onefocus);
 			input_dialog.showDialog();
