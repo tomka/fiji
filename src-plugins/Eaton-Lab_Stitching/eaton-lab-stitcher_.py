@@ -7,6 +7,7 @@ import shutil
 import re
 import xml.dom.minidom
 import time
+import sys
 from javax.swing import JButton, JScrollPane, JPanel, JComboBox, JLabel, JFrame, JTextField, JCheckBox
 from java.awt import Color, GridLayout
 from java.awt.event import ActionListener
@@ -26,6 +27,7 @@ showReference = False
 showResult = True
 tmpDir = ""
 srcDir = ""
+outputDir = "stitched"
 sourceFiles = []
 referenceFiles = {}
 referenceFilesMetaData = {}
@@ -49,14 +51,42 @@ fusionMethod = "Linear Blending"
 handleRGB = "Red, Green and Blue"
 invertXOffset = False
 invertYOffset = False
+logMessages = []
 
 # Choose a directory with lots of stacks
 dc = DirectoryChooser("Choose directory with stacks")
 srcDir = dc.getDirectory()
+if srcDir is None:
+	sys.exit()
+outputDir = srcDir + "stitched"
 
 def log(message):
+	logMessages.append(message)
 	print message
 	time.sleep(0.001)
+
+def saveWrapperLog(path):
+	try:
+		f = open(path, 'w')
+		for item in logMessages:
+			f.write("%s\n" % item)
+	except:
+		print "ERR: Could not save log file!"
+	finally:
+		if f is not None:
+			f.close()
+
+def saveStitcherLog(path):
+	try:
+		f = open(path, 'w')
+		logText = IJ.getLog()
+		if logText is not None:
+			f.write(logText)
+	except:
+		print "ERR: Could not save log file!"
+	finally:
+		if f is not None:
+			f.close()
 
 # A closs for storing image information
 class ImageInfo():
@@ -376,7 +406,10 @@ def stitch():
 	combined = ImagePlus( "rendered", stack)
 	combined.setDimensions(numChannels, numSlices, 1)
 	composite = CompositeImage( combined )
-	IJ.saveAs(composite, "tif", tmpDir + "/" + "stitched_composite.tiff")
+	try:
+		IJ.saveAs(composite, "tif", outputDir + "/" + "stitched_composite.tiff")
+	except:
+		log("ERR: Could not save file")
 	if showResult:
 		composite.show()
 
@@ -393,6 +426,10 @@ def doWork(extFilter):
 			if not os.path.exists(tmpDir):
 				os.makedirs(tmpDir)
 		log("\tusing temporary directory: " + tmpDir)
+		# create output directory if not present
+		if not os.path.exists(outputDir):
+			os.makedirs(outputDir)
+		log("\tusing output directory: " + outputDir)
 		getSourceFiles(extFilter)
 		extractChannels(referenceChannel)
 		createTilingInfo()
@@ -412,17 +449,21 @@ def doWork(extFilter):
 		except OSError, e:
 			if e.errno != 2: # code 2 - no such file or directory
 				raise
+	saveWrapperLog(outputDir + "/wrapper.log")
+	saveStitcherLog(outputDir + "/stitcher.log")
+		
 
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(13, 2)
+layout = GridLayout(14, 2)
 all.setLayout(layout)
 
 extTf = JTextField()
 chTf = JTextField()
 xTilesTf = JTextField(str(xTiles))
 yTilesTf = JTextField(str(yTiles))
+outputTf = JTextField(outputDir)
 tilingInfoTf = JTextField(tilingInfoFile)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
 invertYCb = JCheckBox("Invert Y offset", invertYOffset)
@@ -443,6 +484,7 @@ class Listener(ActionListener):
 		global showReference
 		global invertXOffset
 		global invertYOffset
+		global outputDir
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -450,6 +492,7 @@ class Listener(ActionListener):
 		useSystemTmpFolder = tmpCb.isSelected()
 		deleteTempFolder = delTmpCb.isSelected()
 		referenceChannel = int(chTf.getText())
+		outputDir = outputTf.getText()
 		tilingInfoFile = tilingInfoTf.getText()
 		xTiles = int(xTilesTf.getText())
 		yTiles = int(yTilesTf.getText())
@@ -469,6 +512,8 @@ all.add(JLabel("X tiles"))
 all.add(xTilesTf)
 all.add(JLabel("Y tiles"))
 all.add(yTilesTf)
+all.add(JLabel("Output folder"))
+all.add(outputTf)
 all.add(JLabel("Tiling info XML"))
 all.add(tilingInfoTf)
 all.add(tmpCb)
