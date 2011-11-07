@@ -43,7 +43,7 @@ yTiles = 0
 dim = 3
 rgbOrder = "rgb"
 alpha = 1.5
-thresholdR = 0.6
+thresholdR = 0.4
 thresholdDisplacementRelative = 2.5
 thresholdDisplacementAbsolute = 3.5
 fusionMethod = "Linear Blending"
@@ -407,7 +407,9 @@ def stitch():
 	combined.setDimensions(numChannels, numSlices, 1)
 	composite = CompositeImage( combined )
 	try:
-		IJ.saveAs(composite, "tif", outputDir + "/" + "stitched_composite.tiff")
+		resultPath = outputDir + "/stitched_composite.tiff"
+		log("Saving result to: " + resultPath)
+		IJ.saveAs(composite, "tif", resultPath)
 	except:
 		log("ERR: Could not save file")
 	if showResult:
