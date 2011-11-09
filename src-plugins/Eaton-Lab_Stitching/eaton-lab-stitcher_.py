@@ -249,7 +249,7 @@ def translateImageInfo():
 		widthConvValueLineEnd = metadata.find("\n", widthConvValueIndex)
 		widthConvValue = float(metadata[widthConvValueIndex+len(widthConvValueString):widthConvValueLineEnd])
 	
-	log("\tfound width convetsion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\"")
+	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\"")
 		
 	# Go through the other file infos and update offsets
 	for sf in sourceFileInfos:
@@ -461,7 +461,7 @@ all = JPanel()
 layout = GridLayout(15, 2)
 all.setLayout(layout)
 
-extTf = JTextField()
+extTf = JTextField(".*\.oif")
 chTf = JTextField(str(referenceChannel))
 xTilesTf = JTextField(str(xTiles))
 yTilesTf = JTextField(str(yTiles))
@@ -508,10 +508,8 @@ class Listener(ActionListener):
 
 # Add GUI input
 all.add(JLabel("file reg. ex."))
-extTf.setText(".*\.oif")
 all.add(extTf)
 all.add(JLabel("Stitching channel"))
-chTf.setText("1")
 all.add(chTf)
 all.add(JLabel("X tiles"))
 all.add(xTilesTf)
@@ -545,3 +543,4 @@ frame.getContentPane().add(JScrollPane(all))
 frame.pack()
 # Show GUI
 frame.setVisible(True)
+
