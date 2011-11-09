@@ -36,7 +36,7 @@ sourceFileInfos = {}
 tilingInfoFile = "MATL_Mosaic.log"
 tilingInfoSuffix = "_01"
 numChannels = -1
-referenceChannel = -1
+referenceChannel = 0
 tilingCongigFile = "TilingConfiguration.txt"
 xTiles = 0
 yTiles = 0
@@ -458,13 +458,14 @@ def doWork(extFilter):
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(14, 2)
+layout = GridLayout(15, 2)
 all.setLayout(layout)
 
 extTf = JTextField()
-chTf = JTextField()
+chTf = JTextField(str(referenceChannel))
 xTilesTf = JTextField(str(xTiles))
 yTilesTf = JTextField(str(yTiles))
+thresholdTf = JTextField(str(thresholdR))
 outputTf = JTextField(outputDir)
 tilingInfoTf = JTextField(tilingInfoFile)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
@@ -487,6 +488,7 @@ class Listener(ActionListener):
 		global invertXOffset
 		global invertYOffset
 		global outputDir
+		global thresholdR
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -498,6 +500,7 @@ class Listener(ActionListener):
 		tilingInfoFile = tilingInfoTf.getText()
 		xTiles = int(xTilesTf.getText())
 		yTiles = int(yTilesTf.getText())
+		thresholdR = float(thresholdTf.getText())
 		saveStitchedChannels = saveChCb.isSelected()
 		showReference = showRefStitchCb.isSelected()
 		showResult = showResultCb.isSelected()
@@ -514,6 +517,8 @@ all.add(JLabel("X tiles"))
 all.add(xTilesTf)
 all.add(JLabel("Y tiles"))
 all.add(yTilesTf)
+all.add(JLabel("Threshold"))
+all.add(thresholdTf)
 all.add(JLabel("Output folder"))
 all.add(outputTf)
 all.add(JLabel("Tiling info XML"))
