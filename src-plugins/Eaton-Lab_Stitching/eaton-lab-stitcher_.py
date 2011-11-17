@@ -47,6 +47,10 @@ thresholdR = 0.4
 thresholdDisplacementRelative = 2.5
 thresholdDisplacementAbsolute = 3.5
 fusionMethod = "Linear Blending"
+# Information about the current image
+resolution = ""
+dimension = ""
+tilingDesc = ""
 #fusionMethod = "None"
 handleRGB = "Red, Green and Blue"
 invertXOffset = False
@@ -84,6 +88,18 @@ def saveStitcherLog(path):
 			f.write(logText)
 	except:
 		print "ERR: Could not save log file!"
+	finally:
+		if f is not None:
+			f.close()
+
+def saveInfoFile(path):
+	try:
+		f = open(path, 'w')
+		f.write("dimension: " + dimension + "\n")
+		f.write("resolution: " + resolution + "\n")
+		f.write("name: " + tilingDesc)
+	except:
+		print "ERR: Could not save info file!"
 	finally:
 		if f is not None:
 			f.close()
@@ -199,6 +215,7 @@ def findImageInfo(doc, filename):
 
 def translateImageInfo():
 	global sourceFileInfos
+	global resolution
 	firstFound = False
 	bbMinXInfo = None
 	bbMinYInfo = None
@@ -250,7 +267,7 @@ def translateImageInfo():
 		widthConvValue = float(metadata[widthConvValueIndex+len(widthConvValueString):widthConvValueLineEnd])
 	
 	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\"")
-		
+	resolution = "(" + str(widthConvValue) + "," + str(widthConvValue) + "," + str(widthConvValue) + ")"
 	# Go through the other file infos and update offsets
 	for sf in sourceFileInfos:
 		i = sourceFileInfos[sf]
@@ -317,6 +334,7 @@ def createChannelTilingConfig(referenceFile):
 	referenceConfig.close()
 
 def stitch():
+	global dimension
 	log("starting stitching")
 	stitcher = Stitch_Image_Collection()
 	# General stitching properties
@@ -398,6 +416,7 @@ def stitch():
 	numSlices = stitchedChannels[0].getStackSize()
 	stack = ImageStack( width, height )
 	log("\tcombining all " + str(numChannels) + " channels into one composite image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
+	dimension = "(" + str(width) + "," + str(height) + "," + str(numSlices) + ")"
 	for z in range(0, numSlices):
 		for c in range(0, numChannels):
 			channel = stitchedChannels[c]
@@ -453,12 +472,12 @@ def doWork(extFilter):
 				raise
 	saveWrapperLog(outputDir + "/wrapper.log")
 	saveStitcherLog(outputDir + "/stitcher.log")
-		
+	saveInfoFile(outputDir + "/info.yml")
 
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(15, 2)
+layout = GridLayout(16, 2)
 all.setLayout(layout)
 
 extTf = JTextField(".*\.oif")
@@ -468,6 +487,7 @@ yTilesTf = JTextField(str(yTiles))
 thresholdTf = JTextField(str(thresholdR))
 outputTf = JTextField(outputDir)
 tilingInfoTf = JTextField(tilingInfoFile)
+tilingDescTf = JTextField(tilingDesc)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
 invertYCb = JCheckBox("Invert Y offset", invertYOffset)
 tmpCb = JCheckBox("Use System temp folder", useSystemTmpFolder)
@@ -489,6 +509,7 @@ class Listener(ActionListener):
 		global invertYOffset
 		global outputDir
 		global thresholdR
+		global tilingDesc
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -498,6 +519,7 @@ class Listener(ActionListener):
 		referenceChannel = int(chTf.getText())
 		outputDir = outputTf.getText()
 		tilingInfoFile = tilingInfoTf.getText()
+		tilingDesc = tilingDescTf.getText()
 		xTiles = int(xTilesTf.getText())
 		yTiles = int(yTilesTf.getText())
 		thresholdR = float(thresholdTf.getText())
@@ -521,6 +543,8 @@ all.add(JLabel("Output folder"))
 all.add(outputTf)
 all.add(JLabel("Tiling info XML"))
 all.add(tilingInfoTf)
+all.add(JLabel("Tiling description"))
+all.add(tilingDescTf)
 all.add(tmpCb)
 all.add(JLabel(""))
 all.add(invertXCb)
