@@ -118,7 +118,7 @@ class ImageInfo():
 # Get source files
 def getSourceFiles(extFilter):
 	global sourceFiles
-	log("looking gor source files, using regular expression: " + extFilter)
+	log("looking for source files, using regular expression: " + extFilter)
 	pattern = re.compile(extFilter)
 	for filename in os.listdir(srcDir):
 		# don't allow folders
@@ -128,6 +128,9 @@ def getSourceFiles(extFilter):
 		if (pattern.match(filename) is None):
 			continue
 		sourceFiles.append(filename)
+	# Sort source files
+	log("\tsorting source files")
+	sourceFiles.sort()
 
 # Prepends channel information to a file name and appends .tiff
 def getChannelFileName(filename, channel):
