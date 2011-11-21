@@ -246,31 +246,20 @@ def translateImageInfo():
 	useCalibration = True
 	heightConvValue = 1.0
 	widthConvValue = 1.0
-	if useCalibration:
-		calibration = referenceFilesCalibration.values()[0]
-		heightConvValue = calibration.pixelWidth
-		widthConvValue = calibration.pixelHeight
-	else:
-		# For now, expect all images to come from the same experiment
-		# and use the conversion factors in the meta data from the first
-		# reference file.
-		metadata = referenceFilesMetaData.values()[0]
-		heightConvValueString = "[Reference Image Parameter] HeightConvertValue = "
-		heightConvValueIndex = metadata.find(heightConvValueString)
-		if heightConvValueIndex == -1:
-			raise StandardError("Did not find height conversion information in meta data")
-		heightConvValueLineEnd = metadata.find("\n", heightConvValueIndex)
-		heightConvValue = float(metadata[heightConvValueIndex+len(heightConvValueString):heightConvValueLineEnd])
-		
-		widthConvValueString = "[Reference Image Parameter] WidthConvertValue = "
-		widthConvValueIndex = metadata.find(widthConvValueString)
-		if widthConvValueIndex == -1:
-			raise StandardError("Did not find width conversion information in meta data")
-		widthConvValueLineEnd = metadata.find("\n", widthConvValueIndex)
-		widthConvValue = float(metadata[widthConvValueIndex+len(widthConvValueString):widthConvValueLineEnd])
+	calibration = referenceFilesCalibration.values()[0]
+	heightConvValue = calibration.pixelWidth
+	widthConvValue = calibration.pixelHeight
+	unit = calibration.getUnit()
 	
-	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\"")
-	resolution = "(" + str(widthConvValue) + "," + str(widthConvValue) + "," + str(widthConvValue) + ")"
+	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\" -- unit: " + unit + "/px")
+	# The resolution infomation is expected to be nm/px
+	resolutionInfo = widthConvValue
+	if unit == "um":
+		resolutionInfo = resolutionInfo * 1000
+	elif unit != "nm":
+		log("\t\tthe unit used is not yet recognized to be converted for use with CatMaid")	
+	resolution = "(" + str(resolutionInfo) + "," + str(resolutionInfo) + "," + str(resolutionInfo) + ")"
+	
 	# Go through the other file infos and update offsets
 	for sf in sourceFileInfos:
 		i = sourceFileInfos[sf]
