@@ -193,7 +193,7 @@ def findImageInfo(doc, filename):
 							 log("\tfound XML node for file " + filename + " (corrected from: " + origFilename + ")")
 							 imageElement = node
 	if imageElement == None:
-		log("\tfount no position information information in XML document for file " + origFilename)
+		log("\tfound no position information information in XML document for file " + origFilename)
 		return None
 	# Read out position information
 	xPos = 0.0
