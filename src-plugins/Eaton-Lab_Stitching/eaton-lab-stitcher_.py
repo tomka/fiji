@@ -8,16 +8,24 @@ import re
 import xml.dom.minidom
 import time
 import sys
+from jarray import array
 from javax.swing import JButton, JScrollPane, JPanel, JComboBox, JLabel, JFrame, JTextField, JCheckBox
 from java.awt import Color, GridLayout
 from java.awt.event import ActionListener
 from java.util import ArrayList
+from java.io import File
 from loci.plugins import LociImporter
 from loci.plugins import BF
 from loci.plugins.in import ImporterOptions
-import Stitch_Image_Collection
-import stitching
-import stitching.model
+from mpicbg.stitching import StitchingParameters
+from mpicbg.stitching import ImageCollectionElement
+from mpicbg.models import TranslationModel2D
+from mpicbg.models import TranslationModel3D
+from mpicbg.stitching import CollectionStitchingImgLib
+from mpicbg.stitching.fusion import Fusion
+from mpicbg.imglib.type.numeric.integer import UnsignedByteType
+from mpicbg.imglib.type.numeric.integer import UnsignedShortType
+from mpicbg.imglib.type.numeric.real import FloatType
 
 # Global variables
 useSystemTmpFolder = True
@@ -33,6 +41,7 @@ referenceFiles = {}
 referenceFilesMetaData = {}
 referenceFilesCalibration = {}
 sourceFileInfos = {}
+sourceFilesCalibration = {}
 tilingInfoFile = "MATL_Mosaic.log"
 tilingInfoSuffix = "_01"
 numChannels = -1
@@ -132,21 +141,11 @@ def getSourceFiles(extFilter):
 	log("\tsorting source files")
 	sourceFiles.sort()
 
-# Prepends channel information to a file name and appends .tiff
-def getChannelFileName(filename, channel):
-	return "C-" + str(channel) + "_" + filename + ".tiff"
-
-# Creates a name for a channel configuration file based on a
-# reference file name.
-def getChannelConfigName(referenceFile, channel):
-	return referenceFile + "_C-" + str(channel)
-
-# Load the stacks and extract the different channels into
-# separate files
-def extractChannels(channel):
+# Load the stacks and extract the metadata
+def extractMetadata():
 	global referenceFiles
 	global numChannels
-	log("extracting channels from files")
+	log("extracting meta data from files")
 	# check out all files in source folder
 	for filename in sourceFiles:
 		log("\tloading " + filename)
@@ -154,24 +153,16 @@ def extractChannels(channel):
 		path = srcDir + filename
 		options = ImporterOptions()
 		options.setId(path)
-		options.setSplitChannels(True)
+		options.setSplitChannels(False)
 		options.setWindowless(True)
+		options.setVirtual(True)
 		imps = BF.openImagePlus(options)
-		numChannels = len(imps)
-		log("\t\tsplitting files into " + str(numChannels) + " channel(s)")
-		# Get the requested channel, save it and close everything again
-		if numChannels <= channel:
-			log("\t\terror: requested channel number (" + str(channel) + ") is larger than available channels")
-			raise StandardError("Requested Channel number too large")
-		for i in range(0, numChannels):
-			name = getChannelFileName(filename, i)
-			if i == channel:
-				# Remember the reference file name and the original file name
-				referenceFiles[name] = filename
-				referenceFilesMetaData[name] = imps[i].getProperty("Info")
-				referenceFilesCalibration[name] = imps[i].getCalibration()
-			IJ.saveAs(imps[i], "tif", tmpDir + "/" + name)
-			#imps[i].close()
+		log("\t\tOpened " + str(len(imps)) + " image(s)")
+		# Check if there are enought channels
+		#if numChannels <= channel:
+		#	log("\t\terror: requested channel number (" + str(channel) + ") is larger than available channels")
+		#	raise StandardError("Requested Channel number too large")
+		sourceFilesCalibration[filename] = imps[0].getCalibration()
 
 # Iterates the xml document and looks for image information
 # for a specified filename
@@ -246,7 +237,7 @@ def translateImageInfo():
 	useCalibration = True
 	heightConvValue = 1.0
 	widthConvValue = 1.0
-	calibration = referenceFilesCalibration.values()[0]
+	calibration = sourceFilesCalibration.values()[0]
 	heightConvValue = calibration.pixelWidth
 	widthConvValue = calibration.pixelHeight
 	unit = calibration.getUnit()
@@ -254,7 +245,7 @@ def translateImageInfo():
 	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\" -- unit: " + unit + "/px")
 	# The resolution infomation is expected to be nm/px
 	resolutionInfo = widthConvValue
-	if unit == "um":
+	if unit == "um" or unit == "micron":
 		resolutionInfo = resolutionInfo * 1000
 	elif unit != "nm":
 		log("\t\tthe unit used is not yet recognized to be converted for use with CatMaid")	
@@ -280,9 +271,10 @@ def translateImageInfo():
 # Tries to create tiling information
 def createTilingInfo():
 	global sourceFileInfos
+	useXML = True
 	log("creating tiling information")
 	tilingFilePath = srcDir + tilingInfoFile
-	if os.path.exists(tilingFilePath):
+	if useXML and os.path.exists(tilingFilePath):
 		log("\tfound tiling info XML (" + tilingFilePath + "), going to read it")
 		doc = xml.dom.minidom.parse(tilingFilePath)
 		for f in sourceFiles:
@@ -292,139 +284,101 @@ def createTilingInfo():
 				log("\t\t" + str(imageInfo))
 	else:
 		for f in sourceFiles:
-			sourceFileInfos[f] = None
-		log("\tdid not find tiling info XML (" + tilingFilePath + "), making wild guesses")
-
-# A method to create one tiling configuration file per
-# channel, based on a configuration file for the reference
-# channel. 
-def createChannelTilingConfig(referenceFile):
-	log("\tcreating tile configuration files")
-	# Open reference file and read in its contents
-	referenceConfig = open(referenceFile)
-	referenceLines = []
-	for line in referenceConfig:
-		referenceLines.append(line)
-	referenceContent = ''.join(referenceLines)
-	# Create a new config file for each channel
-	for c in range(0, numChannels):
-		# Open the output file
-		chConfigName = getChannelConfigName(referenceFile, c)
-		chConfig = open(chConfigName, 'w')
-		chContent = referenceContent
-		# Look for mentioned reference files in the reference
-		# files conent. If found, replace it with the current
-		# channel file name.
-		for ref in referenceFiles:
-			origFileName = referenceFiles[ref]
-			chFileName = getChannelFileName(origFileName, c)
-			chContent = chContent.replace(ref, chFileName)
-		# Write the (possibly altered) content to the channel file
-		chConfig.write(chContent)
-		# We are done with that channel, close it
-		chConfig.close()
-	referenceConfig.close()
+			calibration = sourceFilesCalibration[f]
+			sourceFileInfos[f] = ImageInfo(f, calibration.xOrigin, calibration.yOrigin)
+			log("\tUsing calibration data: " + str(sourceFileInfos[f]))
 
 def stitch():
 	global dimension
 	log("starting stitching")
-	stitcher = Stitch_Image_Collection()
-	# General stitching properties
-	createPreview = False
-	computeOverlap = True
-	gridLayout = stitching.GridLayout()
-	outputFileName	= tmpDir + "/" + tilingCongigFile
-	# Add information about the stitching process
-	gridLayout.rgbOrder = rgbOrder
-	gridLayout.alpha = alpha
-	gridLayout.thresholdR = thresholdR
-	gridLayout.thresholdDisplacementRelative = thresholdDisplacementRelative
-	gridLayout.thresholdDisplacementAbsolute =	thresholdDisplacementAbsolute
-	gridLayout.sizeX = xTiles
-	gridLayout.sizeY = yTiles
-	gridLayout.fusionMethod = fusionMethod
-	gridLayout.handleRGB = handleRGB
-	gridLayout.dim = dim
-	gridLayout.imageInformationList = ArrayList()
-	# Stitch the reference files
-	i = 0
-	for f in referenceFiles:
-		log("\tPreparing image info for file " + f)
-		iI = None
+	params = StitchingParameters()
+	params.fusionMethod = 0
+	params.regThreshold = 0.3
+	params.relativeThreshold = 2.5
+	params.absoluteThreshold = 3.5
+	params.computeOverlap = True
+	params.subpixelAccuracy = True
+	params.cpuMemChoice = 0
+	params.channel1 = 0
+	params.channel2 = 0
+	params.timeSelect = 0
+	params.checkPeaks = 5
+	params.dimensionality = dim;
+	
+	elements = ArrayList()
+	numTimePoints = 1
+	index = 0
+	for f in sourceFiles:
+		fi = sourceFileInfos[f]
+		element = ImageCollectionElement( File( srcDir, fi.filename ), index )
+		index = index + 1
+		element.setDimensionality( dim )
 		if dim == 3:
-			iI = stitching.ImageInformation(3, i, stitching.model.TranslationModel3D())
+			element.setModel( TranslationModel3D() )
+			element.setOffset( array([fi.xOffset, fi.yOffset, 0.0], "f") )
 		else:
-			iI = stitching.ImageInformation(2, i, stitching.model.TranslationModel2D())
-		iI.imageName = tmpDir + "/" + f
-		iI.imp = None
-		sourceFileInfo = sourceFileInfos[referenceFiles[f]]
-		if sourceFileInfo == None:
-			log("\t\tno position information available")
-			iI.offset[0] = 0
-			iI.offset[1] = 0
-			iI.position[0] = 0
-			iI.position[1] = 0
-			if dim == 3:
-				iI.offset[2] = 0
-				iI.position[2] = 0
-		else:
-			log("\t\tthere is position information available: (" + str(sourceFileInfo.xpos) + ", " + str(sourceFileInfo.ypos) + ")")
-			iI.offset[0] = sourceFileInfo.xOffset
-			iI.offset[1] = sourceFileInfo.yOffset
-			iI.position[0] = sourceFileInfo.xOffset
-			iI.position[1] = sourceFileInfo.yOffset
-			if dim == 3:
-				iI.offset[2] = 0
-				iI.position[2] = 0
-		
-		gridLayout.imageInformationList.add(iI)
-		i = i + 1
-	log("\tcomputing overlap and tiling configuration")
-	stitcher.work(gridLayout, createPreview, computeOverlap, outputFileName, showReference)
-	log("\tbuilding ap stitched images for all " + str(numChannels) + " channels")
-	tilingConfigFile = outputFileName + ".registered"
-	if not os.path.exists(tilingConfigFile):
-		log("\tthe tiling configuration file (" + tilingConfigFile + ") could not be found, an error might have happened")
-		raise StandardError("Tiling configuration file not found")
-	# Create tile configuration files for all other channels
-	log("\tcreating tiling configurations for all channels")
-	createChannelTilingConfig(tilingConfigFile)
-	# Stitch all channels separately
-	log("\tstitching all channels")
-	stitchedChannels = []
-	for c in range(0, numChannels):
-		chConfigName = getChannelConfigName(tilingConfigFile, c)
-		stitchedCh = stitcher.work(chConfigName, False, False, fusionMethod, handleRGB, False)
-		stitchedChannels.append(stitchedCh)
-	# Save channels if wanted
-	if saveStitchedChannels:
-		log("\tsaving single channel images to folder " + tmpDir)
-		for i in range(0, numChannels):
-			name = "C-" + str(i) + "_stitched.tiff"
-			IJ.saveAs(stitchedChannels[i], "tif", tmpDir + "/" + name)
-	# Combine channels into one file
-	width = stitchedChannels[0].getWidth()
-	height = stitchedChannels[0].getHeight()
-	numSlices = stitchedChannels[0].getStackSize()
-	stack = ImageStack( width, height )
-	log("\tcombining all " + str(numChannels) + " channels into one composite image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
+			element.setModel( TranslationModel2D() )
+			element.setOffset( array([fi.xOffset, fi.yOffset], "f") )
+		elements.add(element)
+	
+
+	optimized = CollectionStitchingImgLib.stitchCollection( elements, params )
+
+	#for ( final ImagePlusTimePoint imt : optimized )
+	#	IJ.log( imt.getImagePlus().getTitle() + ": " + imt.getModel() );
+
+	log("\tfusing images")
+	models = ArrayList()
+	images = ArrayList()	
+	is32bit = False
+	is16bit = False
+	is8bit = False
+	
+	for i in range(0, optimized.size()):
+		imt = optimized.get(i)
+		imp = imt.getImagePlus()
+		if imp.getType() == ImagePlus.GRAY32:
+			is32bit = True;
+		elif imp.getType() == ImagePlus.GRAY16:
+			is16bit = True;
+		elif imp.getType() == ImagePlus.GRAY8:
+			is8bit = True;
+		images.add( imp );
+
+	for f in range(1, numTimePoints + 1):
+		for i in range(0, optimized.size()):
+			imt = optimized.get(i)
+			models.add( imt.getModel() )
+
+	imp = None
+	if is32bit:
+		imp = Fusion.fuse( FloatType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+	elif is16bit:
+		imp = Fusion.fuse( UnsignedShortType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+	elif is8bit:
+		imp = Fusion.fuse( UnsignedByteType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+	else:
+		log( "unknown image type for fusion." )
+
+	# close all images
+	for element in elements:
+		element.close()
+	# create dimension information for info.yml
+	width = imp.getWidth()
+	height = imp.getHeight()
+	numSlices = imp.getStackSize()
+	log("\tcreated result image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
 	dimension = "(" + str(width) + "," + str(height) + "," + str(numSlices) + ")"
-	for z in range(0, numSlices):
-		for c in range(0, numChannels):
-			channel = stitchedChannels[c]
-			cp = channel.getStack().getProcessor(z + 1).duplicate()
-			stack.addSlice( "", cp );
-	combined = ImagePlus( "rendered", stack)
-	combined.setDimensions(numChannels, numSlices, 1)
-	composite = CompositeImage( combined )
+
 	try:
 		resultPath = outputDir + "/stitched_composite.tiff"
 		log("Saving result to: " + resultPath)
-		IJ.saveAs(composite, "tif", resultPath)
+		IJ.saveAs(imp, "tif", resultPath)
 	except:
 		log("ERR: Could not save file")
+
 	if showResult:
-		composite.show()
+		imp.show()
 
 # Main method
 def doWork(extFilter):
@@ -444,7 +398,7 @@ def doWork(extFilter):
 			os.makedirs(outputDir)
 		log("\tusing output directory: " + outputDir)
 		getSourceFiles(extFilter)
-		extractChannels(referenceChannel)
+		extractMetadata()
 		createTilingInfo()
 		translateImageInfo()
 		prepareTime = time.time() - startTime
@@ -559,4 +513,3 @@ frame.getContentPane().add(JScrollPane(all))
 frame.pack()
 # Show GUI
 frame.setVisible(True)
-
