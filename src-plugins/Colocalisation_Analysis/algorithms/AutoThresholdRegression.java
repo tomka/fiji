@@ -29,10 +29,23 @@ public class AutoThresholdRegression<T extends RealType<T>> extends Algorithm<T>
 	double bToYMaxRatio = 0.0;
 	//This is the Pearson's correlation we will use for further calculations
 	PearsonsCorrelation<T> pearsonsCorrellation;
+	// manual threshold calculation
+	boolean useManualThreshold;
+	double manualThresholdDenominatorCh1, manualThresholdDenominatorCh2;
 
 	public AutoThresholdRegression(PearsonsCorrelation<T> pc) {
 		super("auto threshold regression");
 		pearsonsCorrellation = pc;
+		this.useManualThreshold = false;
+	}
+	
+	public AutoThresholdRegression(PearsonsCorrelation<T> pc, double manualThresholdDenomCh1,
+			double manualThresholdDenomCh2) {
+		super("auto threshold regression");
+		pearsonsCorrellation = pc;
+		this.useManualThreshold = true;
+		this.manualThresholdDenominatorCh1 = manualThresholdDenomCh1;
+		this.manualThresholdDenominatorCh2 = manualThresholdDenomCh2;
 	}
 
 	@Override
@@ -45,6 +58,17 @@ public class AutoThresholdRegression<T extends RealType<T>> extends Algorithm<T>
 
 		double ch1Mean = container.getMeanCh1();
 		double ch2Mean = container.getMeanCh2();
+		
+		if (useManualThreshold) {
+			autoThresholdSlope = Double.NaN;
+			autoThresholdIntercept = Double.NaN;
+			bToYMaxRatio = Double.NaN;
+			ch1MaxThreshold = img1.createType();
+			ch1MaxThreshold.setReal(ch1Mean / manualThresholdDenominatorCh1);
+			ch2MaxThreshold = img2.createType();
+			ch2MaxThreshold.setReal(ch2Mean / manualThresholdDenominatorCh2);
+			return;
+		}
 
 		double combinedMean = ch1Mean + ch2Mean;
 

@@ -141,6 +141,10 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 
 	// indicates if a PDF should be saved automatically
 	protected boolean autoSavePdf;
+	
+	protected boolean useManualThreshold;
+	protected double manualThresholdDenominatorCh1,
+		manualThresholdDenominatorCh2;
 
 	public void run(String arg0) {
 		if (showDialog()) {
@@ -202,8 +206,11 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		boolean useManders = Prefs.get(PREF_KEY+"useManders", true);
 		boolean useScatterplot = Prefs.get(PREF_KEY+"useScatterplot", true);
 		boolean useCostes = Prefs.get(PREF_KEY+"useCostes", true);
+		useManualThreshold = Prefs.get(PREF_KEY+"useManualThreshold", false);
 		int psf = (int) Prefs.get(PREF_KEY+"psf", 3);
 		int nrCostesRandomisations = (int) Prefs.get(PREF_KEY+"nrCostesRandomisations", 10);
+		manualThresholdDenominatorCh1 = Prefs.get(PREF_KEY+"manualThresholdDenominatorCh1", 2.0f);
+		manualThresholdDenominatorCh2 = Prefs.get(PREF_KEY+"manualThresholdDenominatorCh2", 2.0f);
 
 		/* make sure the default indices are no bigger
 		 * than the amount of images we have
@@ -229,9 +236,12 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		gd.addCheckbox("Manders'_Correlation", useManders);
 		gd.addCheckbox("2D_Instensity_Histogram", useScatterplot);
 		gd.addCheckbox("Costes'_Significance_Test", useCostes);
+		gd.addCheckbox("Use manual threshold", useManualThreshold);
 		final Checkbox costesCb = (Checkbox) gd.getCheckboxes().lastElement();
 		gd.addNumericField("PSF", psf, 1);
 		gd.addNumericField("Costes_randomisations", nrCostesRandomisations, 0);
+		gd.addNumericField("Manual_threshold_denominator_Ch1", 2.0f, 1);
+		gd.addNumericField("Manual_threshold_denominator_Ch2", 2.0f, 1);
 
 		// disable shuffle checkbox if costes checkbox is set to "off"
 		shuffleCb.setEnabled(useCostes);
@@ -308,8 +318,11 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		useManders = gd.getNextBoolean();
 		useScatterplot = gd.getNextBoolean();
 		useCostes = gd.getNextBoolean();
+		useManualThreshold = gd.getNextBoolean();
 		psf = (int) gd.getNextNumber();
 		nrCostesRandomisations = (int) gd.getNextNumber();
+		manualThresholdDenominatorCh1 = gd.getNextNumber();
+		manualThresholdDenominatorCh2 = gd.getNextNumber();
 
 		// save user preferences
 		Prefs.set(PREF_KEY+"autoSavePdf", autoSavePdf);
@@ -323,7 +336,9 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		Prefs.set(PREF_KEY+"useCostes", useCostes);
 		Prefs.set(PREF_KEY+"psf", psf);
 		Prefs.set(PREF_KEY+"nrCostesRandomisations", nrCostesRandomisations);
-
+		Prefs.set(PREF_KEY+"manualThresholdDenominatorCh1", manualThresholdDenominatorCh1);
+		Prefs.set(PREF_KEY+"manualThresholdDenominatorCh2", manualThresholdDenominatorCh1);
+		
 		// Parse algorithm options
 		pearsonsCorrelation = new PearsonsCorrelation<T>(PearsonsCorrelation.Implementation.Fast);
 
@@ -389,8 +404,13 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		// add some pre-processing jobs:
 		userSelectedJobs.add( container.setInputCheck(
 			new InputCheck<T>()) );
-		userSelectedJobs.add( container.setAutoThreshold(
-			new AutoThresholdRegression<T>(pearsonsCorrelation)) );
+		if (useManualThreshold)
+			userSelectedJobs.add( container.setAutoThreshold(
+				new AutoThresholdRegression<T>(pearsonsCorrelation,
+						manualThresholdDenominatorCh1, manualThresholdDenominatorCh2)) );
+		else
+			userSelectedJobs.add( container.setAutoThreshold(
+				new AutoThresholdRegression<T>(pearsonsCorrelation)) );
 
 		// add user selected algorithms
 		addIfValid(pearsonsCorrelation, userSelectedJobs);
