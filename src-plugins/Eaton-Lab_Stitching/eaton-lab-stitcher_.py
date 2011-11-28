@@ -49,6 +49,7 @@ tilingInfoFile = "MATL_Mosaic.log"
 tilingInfoSuffix = "_01"
 numChannels = -1
 referenceChannel = 0
+conversionFactor = 1.0
 tilingCongigFile = "TilingConfiguration.txt"
 xTiles = 0
 yTiles = 0
@@ -307,8 +308,8 @@ def translateImageInfo():
 	heightConvValue = 1.0
 	widthConvValue = 1.0
 	calibration = sourceFilesCalibration.values()[0]
-	heightConvValue = calibration.pixelWidth
-	widthConvValue = calibration.pixelHeight
+	heightConvValue = conversionFactor * calibration.pixelWidth
+	widthConvValue = conversionFactor * calibration.pixelHeight
 	unit = calibration.getUnit()
 	
 	log("\tfound width conversion value \"" + str(widthConvValue) + "\" and height conversion value \"" + str(heightConvValue) + "\" -- unit: " + unit + "/px")
@@ -541,7 +542,7 @@ def doWork(extFilter):
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(17, 2)
+layout = GridLayout(18, 2)
 all.setLayout(layout)
 
 extTf = JTextField(".*\.oif")
@@ -549,6 +550,7 @@ chTf = JTextField(str(referenceChannel))
 xTilesTf = JTextField(str(xTiles))
 yTilesTf = JTextField(str(yTiles))
 thresholdTf = JTextField(str(thresholdR))
+convFactorTf = JTextField(str(conversionFactor))
 outputTf = JTextField(outputDir)
 tilingInfoTf = JTextField(tilingInfoFile)
 tilingDescTf = JTextField(tilingDesc)
@@ -576,6 +578,7 @@ class Listener(ActionListener):
 		global thresholdR
 		global tilingDesc
 		global preCombineZStacks
+		global conversionFactor
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -583,6 +586,7 @@ class Listener(ActionListener):
 		useSystemTmpFolder = tmpCb.isSelected()
 		deleteTempFolder = delTmpCb.isSelected()
 		referenceChannel = int(chTf.getText())
+		conversionFactor = float(convFactorTf.getText())
 		outputDir = outputTf.getText()
 		tilingInfoFile = tilingInfoTf.getText()
 		tilingDesc = tilingDescTf.getText()
@@ -606,6 +610,8 @@ all.add(JLabel("Y tiles"))
 all.add(yTilesTf)
 all.add(JLabel("Threshold"))
 all.add(thresholdTf)
+all.add(JLabel("Factor for conv. values"))
+all.add(convFactorTf)
 all.add(JLabel("Output folder"))
 all.add(outputTf)
 all.add(JLabel("Tiling info XML"))
