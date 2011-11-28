@@ -1,6 +1,7 @@
 from ij.io import DirectoryChooser
 from ij import ImageStack
 from ij import CompositeImage
+from ij import IJ
 import os
 import tempfile
 import shutil
@@ -9,6 +10,7 @@ import xml.dom.minidom
 import time
 import sys
 from jarray import array
+import math
 from javax.swing import JButton, JScrollPane, JPanel, JComboBox, JLabel, JFrame, JTextField, JCheckBox
 from java.awt import Color, GridLayout
 from java.awt.event import ActionListener
@@ -37,6 +39,7 @@ tmpDir = ""
 srcDir = ""
 outputDir = "stitched"
 sourceFiles = []
+referenceFileList = []
 referenceFiles = {}
 referenceFilesMetaData = {}
 referenceFilesCalibration = {}
@@ -56,6 +59,7 @@ thresholdR = 0.4
 thresholdDisplacementRelative = 2.5
 thresholdDisplacementAbsolute = 3.5
 fusionMethod = "Linear Blending"
+preCombineZStacks = True
 # Information about the current image
 resolution = ""
 dimension = ""
@@ -115,12 +119,14 @@ def saveInfoFile(path):
 
 # A closs for storing image information
 class ImageInfo():
-	def __init__(self, filename, xpos, ypos):
+	def __init__(self, filename):
 		self.filename = filename
-		self.xpos = xpos
-		self.ypos = ypos
+		self.xpos = 0.0
+		self.ypos = 0.0
 		self.xOffset = 0.0
 		self.yOffset = 0.0
+		self.zOffset = 0.0
+		self.numSlices = 0
 	def __str__(self):
 		return "ImageInfo: " + self.filename + " is at positon (" + str(self.xpos) + ", " + str(self.ypos) + ")"
 
@@ -149,6 +155,7 @@ def extractMetadata():
 	# check out all files in source folder
 	for filename in sourceFiles:
 		log("\tloading " + filename)
+		imageInfo = ImageInfo(filename)
 		# Import the image
 		path = srcDir + filename
 		options = ImporterOptions()
@@ -157,16 +164,23 @@ def extractMetadata():
 		options.setWindowless(True)
 		options.setVirtual(True)
 		imps = BF.openImagePlus(options)
-		log("\t\tOpened " + str(len(imps)) + " image(s)")
+		if len(imps) == 0:
+			log("\t\tCould not load image")
+			continue
+		width = imps[0].getWidth()
+		height = imps[0].getHeight()
+		numSlices = imps[0].getStackSize()
+		log("\t\tOpened " + str(len(imps)) + " image(s) with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
 		# Check if there are enought channels
 		#if numChannels <= channel:
 		#	log("\t\terror: requested channel number (" + str(channel) + ") is larger than available channels")
 		#	raise StandardError("Requested Channel number too large")
 		sourceFilesCalibration[filename] = imps[0].getCalibration()
+		sourceFileInfos[filename] = ImageInfo(filename)
 
 # Iterates the xml document and looks for image information
 # for a specified filename
-def findImageInfo(doc, filename):
+def findImageInfo(doc, filename, imageInfo):
 	origFilename = filename
 	dotIdx = filename.rfind(tilingInfoSuffix)
 	if (dotIdx != -1):
@@ -203,36 +217,91 @@ def findImageInfo(doc, filename):
 					yPos = float(f.nodeValue.strip())
 					yPosFound = True
 	if xPosFound and yPosFound:
-		return ImageInfo(origFilename, xPos, yPos)
-	else:
-		return None
+		imageInfo.xpos = xPos
+		imageInfo.ypos = yPos
+
+def combineZStacks(stackInfo):
+	global srcDir
+	global sourceFiles
+	global sourceFileInfos
+	log("\tcombining Z stacks")
+	newSourceFiles = []
+	newSourceFileInfos = {}
+	#newSourceFilesCalibration = {}
+	updateSourceDir = False
+	for posHash in stackInfo:
+		stacks = stackInfo[posHash]
+		log("\t\tLooking at position: " + posHash)
+		if len(stacks) < 2:
+			# continue with next pos if there is nothing to concatenate
+			log("\t\t\tNot enough stacks to concatenate")
+			name = stacks[0].filename
+			newSourceFiles.append(name)
+			newSourceFileInfos[name] = stacks[0]
+			log("\t\t\tTODO: Move non-enough-stacks files to tmpDir")
+			continue
+		# combine the stacks
+		macro = "setBatchMode(true);\n"
+		file1 = None
+		file2 = None
+		file1Name = None
+		file2Name = None
+		concatImgName = "concatenated"
+		outputName = concatImgName
+		topImageInfo = None
+		for s in stacks:
+			log("\t\t\tstack: " + str(s))
+			# get top stack
+			if file1 is None:
+				file1 = os.path.join(srcDir, s.filename)
+				file1Name = s.filename
+				outputName += file1Name + ".tiff"
+				topImageInfo = s
+				macro += "run(\"Bio-Formats\", \"open=[" + file1 + "] view=Hyperstack stack_order=XYCZT display_metadata=false\");\n"
+				continue
+			# get next stack
+			if file2 is None:
+				file2 = os.path.join(srcDir, s.filename)
+				file2Name = s.filename
+				macro += "run(\"Bio-Formats\", \"open=[" + file2 + "] view=Hyperstack stack_order=XYCZT display_metadata=false\");\n"
+			# concatenate
+			macro += "run(\"Concatenate...\", \"stack1=[" + file1Name + "] stack2=[" + file2Name + "] title=[" + concatImgName + "]\");\n"
+			file1Name = concatImgName
+			file2 = None
+		# save result in same place as source files
+		outputDir = os.path.dirname(file1)
+		outputPath = os.path.join(tmpDir, outputName)
+		macro += "saveAs(\"Tiff\", \"" + outputPath + "\");\n"
+		macro += "close();\n"
+		IJ.runMacro(macro)
+		#Update the source image information
+		newSourceFiles.append(outputName)
+		ii = ImageInfo(outputName)
+		ii.xpos = topImageInfo.xpos
+		ii.ypos = topImageInfo.ypos
+		ii.xOffset = topImageInfo.xOffset
+		ii.yOffset = topImageInfo.yOffset
+		newSourceFileInfos[outputName] = ii
+		updateSourceDir = True
+	# read the new concatenated images from the tmpDir
+	if updateSourceDir:
+		srcDir = tmpDir
+		sourceFiles = newSourceFiles
+		sourceFileInfos = newSourceFileInfos
 
 def translateImageInfo():
 	global sourceFileInfos
 	global resolution
 	firstFound = False
-	bbMinXInfo = None
-	bbMinYInfo = None
-	bbMinX = 0.0
-	bbMinY = 0.0
-	# Find min and max of available image info
-	for sf in sourceFileInfos:
-		i = sourceFileInfos[sf]
-		if i == None:
-			continue
-		if not firstFound:
-			bbMinX = i.xpos
-			bbMinY = i.ypos
-			firstFound = True
-			continue
-		if i.xpos < bbMinX:
-			bbMinX = i.xpos
-			bbMinXInfo = i
-		if i.ypos < bbMinY:
-			bbMinY = i.ypos
-			bbMinYInfo = i
+	# Take the first file as reference file
+	fi = sourceFileInfos[sourceFiles[0]]
+	bbMinXInfo = fi
+	bbMinYInfo = fi
+	bbMinX = fi.xpos
+	bbMinY = fi.ypos
 	# Relate all other images to the one with the lowest X
 	if bbMinXInfo is None:
+		log("\tdid not find bounding box info")
 		return
 	useCalibration = True
 	heightConvValue = 1.0
@@ -266,7 +335,40 @@ def translateImageInfo():
 				i.xOffset = -i.xOffset;
 			if invertYOffset:
 				i.yOffset = -i.yOffset;
-		log("\t\toffset of " + sf + ": (" + str(i.xOffset) + ", " + str(i.yOffset) + ")")
+			# make sure we got no "negative zeros"
+			if math.fabs(i.xOffset) < 0.00001:
+				i.xOffset = 0.0
+			if math.fabs(i.yOffset) < 0.00001:
+				i.yOffset = 0.0
+	# Look for duplicates in the offset. If found interpret these as
+	# z-offset information. The z-offset of the duplicate is set to
+	# be just below the original one
+	coordMap = {}
+	stacksToCombineInZ = {}
+	for sf in sourceFiles:
+		i = sourceFileInfos[sf]
+		if i is None:
+			continue
+		coordHash = str(i.xOffset) + "," + str(i.yOffset)
+		zIndex = 0.0
+		# use already present value, if any
+		if coordHash in coordMap:
+			zIndex = coordMap[coordHash]
+			stacksToCombineInZ[coordHash].append(i)
+		else:
+			stacksToCombineInZ[coordHash] = [i]
+		i.zOffset = zIndex
+		zIndex += i.numSlices + 1 # slices are 1-based
+		coordMap[coordHash] = zIndex
+	# Manage the pre-composition of different z stacks if requested
+	if preCombineZStacks:
+		combineZStacks(stacksToCombineInZ)
+	# One more iteration for log output
+	for sf in sourceFiles:
+		i = sourceFileInfos[sf]
+		if i is None:
+			continue
+		log("\t\toffset of " + sf + ": (" + str(i.xOffset) + ", " + str(i.yOffset) + ", " + str(i.zOffset) + ")")
 
 # Tries to create tiling information
 def createTilingInfo():
@@ -278,24 +380,26 @@ def createTilingInfo():
 		log("\tfound tiling info XML (" + tilingFilePath + "), going to read it")
 		doc = xml.dom.minidom.parse(tilingFilePath)
 		for f in sourceFiles:
-			imageInfo = findImageInfo(doc, f)
-			sourceFileInfos[f] = imageInfo
+			imageInfo = sourceFileInfos[f]
+			findImageInfo(doc, f, imageInfo)
 			if imageInfo != None:
 				log("\t\t" + str(imageInfo))
 	else:
 		for f in sourceFiles:
 			calibration = sourceFilesCalibration[f]
-			sourceFileInfos[f] = ImageInfo(f, calibration.xOrigin, calibration.yOrigin)
-			log("\tUsing calibration data: " + str(sourceFileInfos[f]))
+			imageInfo = sourceFileInfos[f]
+			imageInfo.xOffset = calibration.xOrigin
+			imageInfo.yOffset = calibration.yOrigin
+			log("\tUsing calibration data: " + str(imageInfo))
 
 def stitch():
 	global dimension
 	log("starting stitching")
 	params = StitchingParameters()
 	params.fusionMethod = 0
-	params.regThreshold = 0.3
-	params.relativeThreshold = 2.5
-	params.absoluteThreshold = 3.5
+	params.regThreshold = thresholdR
+	params.relativeThreshold = thresholdDisplacementRelative
+	params.absoluteThreshold = thresholdDisplacementAbsolute
 	params.computeOverlap = True
 	params.subpixelAccuracy = True
 	params.cpuMemChoice = 0
@@ -315,7 +419,7 @@ def stitch():
 		element.setDimensionality( dim )
 		if dim == 3:
 			element.setModel( TranslationModel3D() )
-			element.setOffset( array([fi.xOffset, fi.yOffset, 0.0], "f") )
+			element.setOffset( array([fi.xOffset, fi.yOffset, fi.zOffset], "f") )
 		else:
 			element.setModel( TranslationModel2D() )
 			element.setOffset( array([fi.xOffset, fi.yOffset], "f") )
@@ -323,46 +427,55 @@ def stitch():
 	
 
 	optimized = CollectionStitchingImgLib.stitchCollection( elements, params )
+	imp = None
+	closeElements = True
+	if optimized is None:
+		log("\tcould not find any overlapping tiles")
+		if elements.size() == 1:
+			# if we got only one image, treat it as the result
+			log("\tusing the single available image as result")
+			imp = elements.get(0).open()
+			closeElements = False
+		else:
+			# cancel if we have more than one source files
+			log("\tcanceling the stitching")
+			return
+	else:
+		#for ( final ImagePlusTimePoint imt : optimized )
+		#	IJ.log( imt.getImagePlus().getTitle() + ": " + imt.getModel() );
 
-	#for ( final ImagePlusTimePoint imt : optimized )
-	#	IJ.log( imt.getImagePlus().getTitle() + ": " + imt.getModel() );
+		log("\tfusing images")
+		models = ArrayList()
+		images = ArrayList()
+		is32bit = False
+		is16bit = False
+		is8bit = False
 
-	log("\tfusing images")
-	models = ArrayList()
-	images = ArrayList()	
-	is32bit = False
-	is16bit = False
-	is8bit = False
-	
-	for i in range(0, optimized.size()):
-		imt = optimized.get(i)
-		imp = imt.getImagePlus()
-		if imp.getType() == ImagePlus.GRAY32:
-			is32bit = True;
-		elif imp.getType() == ImagePlus.GRAY16:
-			is16bit = True;
-		elif imp.getType() == ImagePlus.GRAY8:
-			is8bit = True;
-		images.add( imp );
-
-	for f in range(1, numTimePoints + 1):
 		for i in range(0, optimized.size()):
 			imt = optimized.get(i)
-			models.add( imt.getModel() )
+			imp = imt.getImagePlus()
+			if imp.getType() == ImagePlus.GRAY32:
+				is32bit = True;
+			elif imp.getType() == ImagePlus.GRAY16:
+				is16bit = True;
+			elif imp.getType() == ImagePlus.GRAY8:
+				is8bit = True;
+			images.add( imp );
 
-	imp = None
-	if is32bit:
-		imp = Fusion.fuse( FloatType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
-	elif is16bit:
-		imp = Fusion.fuse( UnsignedShortType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
-	elif is8bit:
-		imp = Fusion.fuse( UnsignedByteType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
-	else:
-		log( "unknown image type for fusion." )
+		for f in range(1, numTimePoints + 1):
+			for i in range(0, optimized.size()):
+				imt = optimized.get(i)
+				models.add( imt.getModel() )
 
-	# close all images
-	for element in elements:
-		element.close()
+		if is32bit:
+			imp = Fusion.fuse( FloatType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+		elif is16bit:
+			imp = Fusion.fuse( UnsignedShortType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+		elif is8bit:
+			imp = Fusion.fuse( UnsignedByteType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+		else:
+			log( "unknown image type for fusion." )
+
 	# create dimension information for info.yml
 	width = imp.getWidth()
 	height = imp.getHeight()
@@ -379,6 +492,11 @@ def stitch():
 
 	if showResult:
 		imp.show()
+
+	# close all images
+	if closeElements:
+		for element in elements:
+			element.close()
 
 # Main method
 def doWork(extFilter):
@@ -423,7 +541,7 @@ def doWork(extFilter):
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(16, 2)
+layout = GridLayout(17, 2)
 all.setLayout(layout)
 
 extTf = JTextField(".*\.oif")
@@ -436,6 +554,7 @@ tilingInfoTf = JTextField(tilingInfoFile)
 tilingDescTf = JTextField(tilingDesc)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
 invertYCb = JCheckBox("Invert Y offset", invertYOffset)
+precombineCb = JCheckBox("Precombine adjacent Z tiles (if any)", preCombineZStacks)
 tmpCb = JCheckBox("Use System temp folder", useSystemTmpFolder)
 saveChCb = JCheckBox("Save stitched channel files", saveStitchedChannels)
 delTmpCb = JCheckBox("Delete temp folder at end", deleteTempFolder)
@@ -456,6 +575,7 @@ class Listener(ActionListener):
 		global outputDir
 		global thresholdR
 		global tilingDesc
+		global preCombineZStacks
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -468,6 +588,7 @@ class Listener(ActionListener):
 		tilingDesc = tilingDescTf.getText()
 		xTiles = int(xTilesTf.getText())
 		yTiles = int(yTilesTf.getText())
+		preCombineZStacks = precombineCb.isSelected()
 		thresholdR = float(thresholdTf.getText())
 		saveStitchedChannels = saveChCb.isSelected()
 		showReference = showRefStitchCb.isSelected()
@@ -496,6 +617,8 @@ all.add(JLabel(""))
 all.add(invertXCb)
 all.add(JLabel(""))
 all.add(invertYCb)
+all.add(JLabel(""))
+all.add(precombineCb)
 all.add(JLabel(""))
 all.add(saveChCb)
 all.add(JLabel(""))
