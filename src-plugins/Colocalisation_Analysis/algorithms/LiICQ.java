@@ -65,10 +65,10 @@ public class LiICQ<T extends RealType<T>> extends Algorithm<T> {
 			double productOfDifferenceOfMeans = (mean1 - ch1) * (mean2 - ch2);
 
 			// check for positive and negative values
-			if (productOfDifferenceOfMeans < 0.0 )
-				++numNegariveProducts;
-			else
+			if ( (productOfDifferenceOfMeans > 0.0) && (ch1+ch2 > 0.0) )
 				++numPositiveProducts;
+			else
+				++numNegariveProducts;
 		}
 
 		/* calculate Li's ICQ value by dividing the amount of "positive pixels" to the
