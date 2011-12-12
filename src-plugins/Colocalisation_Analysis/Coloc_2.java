@@ -236,12 +236,12 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		gd.addCheckbox("Manders'_Correlation", useManders);
 		gd.addCheckbox("2D_Instensity_Histogram", useScatterplot);
 		gd.addCheckbox("Costes'_Significance_Test", useCostes);
-		gd.addCheckbox("Use manual threshold", useManualThreshold);
 		final Checkbox costesCb = (Checkbox) gd.getCheckboxes().lastElement();
+		gd.addCheckbox("Use manual threshold", useManualThreshold);
 		gd.addNumericField("PSF", psf, 1);
 		gd.addNumericField("Costes_randomisations", nrCostesRandomisations, 0);
-		gd.addNumericField("Manual_threshold_denominator_Ch1", 2.0f, 1);
-		gd.addNumericField("Manual_threshold_denominator_Ch2", 2.0f, 1);
+		gd.addNumericField("Manual_threshold_denominator_Ch1", manualThresholdDenominatorCh1, 1);
+		gd.addNumericField("Manual_threshold_denominator_Ch2", manualThresholdDenominatorCh2, 1);
 
 		// disable shuffle checkbox if costes checkbox is set to "off"
 		shuffleCb.setEnabled(useCostes);
@@ -334,6 +334,7 @@ public class Coloc_2<T extends RealType<T>> implements PlugIn {
 		Prefs.set(PREF_KEY+"useManders", useManders);
 		Prefs.set(PREF_KEY+"useScatterplot", useScatterplot);
 		Prefs.set(PREF_KEY+"useCostes", useCostes);
+		Prefs.set(PREF_KEY+"useManualThreshold", useManualThreshold);
 		Prefs.set(PREF_KEY+"psf", psf);
 		Prefs.set(PREF_KEY+"nrCostesRandomisations", nrCostesRandomisations);
 		Prefs.set(PREF_KEY+"manualThresholdDenominatorCh1", manualThresholdDenominatorCh1);
