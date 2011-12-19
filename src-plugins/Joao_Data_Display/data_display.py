@@ -7,7 +7,7 @@ Tom Kazimiers, December 2011
 
 import sys
 
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel
 from java.awt import BorderLayout, GridLayout
 
 # Log a method
@@ -28,14 +28,23 @@ class Protein:
 		self.name = name
 		self.markers = markers
 
+# An experiment uses a marker to identify a protein
+class Experiment:
+	def __init__(self, name, protein, marker):
+		self.name = name
+		self.protein = protein
+		self.marker = marker
+	@classmethod
+	def implicit(cls, protein, marker):
+		name = protein + "-" + marker
+		return Experiment(name, protein, marker)
+
 # A project has a name and list of proteins
 class Project:
-	def __init__(self, name):
-		self.name = name
-		self.proteins = []
-	def __init__(self, name, proteins):
+	def __init__(self, name, proteins, experiments):
 		self.name = name
 		self.proteins = proteins
+		self.experiments = experiments
 
 # A GUI that supports multiple screens
 class GUI:
@@ -43,7 +52,10 @@ class GUI:
 		self.project = project
 		self.frame = None
 		self.selectionPanel = None
-		self.lists = []
+		self.continueButton = None
+		self.experimentModel = DefaultListModel()
+		self.experimentList = None
+		self.lists = {}
 		self.init()
 
 	def init(self):
@@ -52,21 +64,29 @@ class GUI:
 		frame.setLayout( BorderLayout() )
 		# The selection panel covers everything for protein/marker selection
 		selectionPanel = JPanel( BorderLayout() )
-		proteinPanel = JPanel( GridLayout( 0, len( self.project.proteins ) ) )
+		proteinPanel = JPanel( GridLayout( 0, len( self.project.proteins ) + 1 ) )
 		# add a JList for all the proteins
 		for p in self.project.proteins:
 			panel = JPanel( BorderLayout() )
 			panel.add( JLabel(p.name), BorderLayout.NORTH )
 			markerList = JList(p.markers)
-			self.lists.append( markerList )
+			markerList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
+			self.lists[ markerList ] = p.name
 			markerList.valueChanged = self.select
 			panel.add( markerList, BorderLayout.CENTER );
 			proteinPanel.add( panel )
+		# Add experiment list box
+		panel = JPanel( BorderLayout() )
+		panel.add( JLabel( "Experiments" ), BorderLayout.NORTH )
+		self.experimentList = JList(self.experimentModel, valueChanged=self.selectExperiment)
+		panel.add( self.experimentList, BorderLayout.CENTER );
+		proteinPanel.add( panel )
 		#frame.getContentPane().add(JScrollPane(all))
-		continueButton = JButton("Show data", actionPerformed=self.showData)
+		self.continueButton = JButton("Show data", actionPerformed=self.showData)
+		self.continueButton.setEnabled( False )
 		selectionPanel.add( JLabel( "Please select a combination" ), BorderLayout.NORTH )
 		selectionPanel.add( proteinPanel, BorderLayout.CENTER )
-		selectionPanel.add( continueButton, BorderLayout.SOUTH )
+		selectionPanel.add( self.continueButton, BorderLayout.SOUTH )
 		frame.add( selectionPanel, BorderLayout.CENTER )
 		frame.pack()
 		frame.setSize( 400, 300 )
@@ -86,18 +106,33 @@ class GUI:
 		if event.getValueIsAdjusting():
 			return
 		# remove all event handlers
-		for l in self.lists:
+		for l in self.lists.keys():
 			l.valueChanged = self.doNothing
 		# get current selection and update lists
 		srcList = event.source
 		marker = srcList.selectedValue
-		log( "Changing selection to " + marker )
-		for l in self.lists:
+		for l in self.lists.keys():
 			if l is not srcList:
 				l.clearSelection()
 		# add all event handlers
-		for l in self.lists:
+		for l in self.lists.keys():
 			l.valueChanged = self.select
+		# try to find experiments for that combination
+		self.experimentModel.clear()
+		self.continueButton.setEnabled( False )
+		protein = self.lists[srcList]
+		for e in self.project.experiments:
+			if protein == e.protein and marker == e.marker:
+				self.experimentModel.addElement(e.name)
+
+	def selectExperiment(self, event):
+		# react only to final selection event
+		if event.getValueIsAdjusting():
+			return
+		if event.source.selectedValue is None:
+			return
+		self.continueButton.setEnabled( True )
+		log( "Selected experiment " + event.source.selectedValue )
 
 	def showData(self, event):
 		log( "Showing data for " )
@@ -106,9 +141,13 @@ class GUI:
 def loadProject(name):
 	project = None
 	if name == "Joao":
-		prot1 = Protein( "WT", ["SpiderGFP", "EcadGFP", "SASVenus", "LachesinGFP"] )
-		prot2 = Protein( "crb11A22", ["SpiderGFP", "EcadGFP", "SASVenus"] )
-		project = Project( name, [prot1, prot2] )
+		proteins = []
+		proteins.append( Protein( "WT", ["SpiderGFP", "EcadGFP", "SASVenus", "LachesinGFP"] ) )
+		proteins.append( Protein( "crb11A22", ["SpiderGFP", "EcadGFP", "SASVenus"] ) )
+		experiments = []
+		experiments.append( Experiment.implicit( "WT", "SpiderGFP" ) )
+		experiments.append( Experiment.implicit( "crb11A22", "SASVenus" ) )
+		project = Project( name, proteins, experiments )
 	else:
 		log("Could not find definition for project with name " + name)
 	return project
