@@ -4,6 +4,8 @@ Swing based GUI for Joao's Data Display
 
 import os
 import sys
+import time
+from threading import Thread
 from java.lang.System import getProperty
 from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
@@ -117,6 +119,13 @@ class SelectionGUI:
 		log( "Showing data for experiment " + experiment.name )
 		self.controler.showDataDialog( experiment )
 
+# A function that repeatedly forwards to the next frame
+# of the current movie
+def animate( gui ):
+	while gui.moviePlaying:
+		gui.showNextMovieFrame()
+		time.sleep( 1.0 / 7.0 )
+
 # A GUI that displays information for one particular experiment
 class DataGUI:
 	def __init__(self, experiment):
@@ -126,6 +135,8 @@ class DataGUI:
 		self.canvases = []
 		self.currentMovie = None
 		self.currentCanvas = None
+		self.moviePlaying = False
+		self.animationThread = None
 		self.init()
 
 	def init(self):
@@ -166,8 +177,8 @@ class DataGUI:
 		controlPanel = JPanel()
 		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
 		controlPanel.add( JButton("Stop", actionPerformed=self.stopMovie) )
-		controlPanel.add( JButton("Prev", actionPerformed=self.showPreviousMovieFrame) )
-		controlPanel.add( JButton("Next", actionPerformed=self.showNextMovieFrame) )
+		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
+		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
 		moviePanel.add( controlPanel, BorderLayout.SOUTH )
 		dataPanel.add( moviePanel )
 		# Second, the matlab figure
@@ -200,16 +211,23 @@ class DataGUI:
 
 	# Reacts to changes of the movie tab component
 	def handleMovieTabChange(self, event):
-		log( "Tab change" )
 		# Update reference to current movie and current canvas
 		self.currentMovie = self.movies[ event.source.getSelectedIndex() ]
 		self.currentCanvas = self.canvases[ event.source.getSelectedIndex() ]
 
+	# Handler for the "next" button
+	def nextFrameButtonHandler(self, event):
+		self.showNextMovieFrame()
+
 	# Forwars one frame of the current movie
-	def showNextMovieFrame(self, event):
+	def showNextMovieFrame( self ):
 		imp = self.currentMovie
 		imp.setSlice( imp.getCurrentSlice() + 1 )
 		self.updateImage()
+
+	# Handler for the "prev" button
+	def prevFrameButtonHandler(self, event):
+		self.showPreviousMovieFrame()
 
 	# Rewinds one frame of the current movie
 	def showPreviousMovieFrame(self, event):
@@ -217,8 +235,19 @@ class DataGUI:
 		imp.setSlice( imp.getCurrentSlice() - 1 )
 		self.updateImage()
 
+	# Plays the current movie with the help pf a new thread
 	def playMovie(self, event):
-		pass
+		# Don't start another thread if we are already running one
+		if self.moviePlaying:
+			return
+		# Create and start a new thread that forwards the movie
+		self.moviePlaying = True
+		self.animationThread = Thread( target=lambda: animate( self ) )
+		self.animationThread.start()
 
+	# Stops the current movie playback
 	def stopMovie(self, event):
-		pass
+		if not self.moviePlaying:
+			return
+		self.moviePlaying = False
+		self.animationThread.join()
