@@ -5,10 +5,12 @@ Swing based GUI for Joao's Data Display
 import os
 import sys
 from java.lang.System import getProperty
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel
-from java.awt import BorderLayout, GridLayout
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane
+from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
 sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
 from helpers import log, exit
+from ij import IJ, ImagePlus
+from ij.gui import ImageCanvas
 
 # A GUI that supports multiple screens
 class SelectionGUI:
@@ -120,6 +122,10 @@ class DataGUI:
 	def __init__(self, experiment):
 		self.experiment = experiment
 		self.frame = None
+		self.movies = []
+		self.canvases = []
+		self.currentMovie = None
+		self.currentCanvas = None
 		self.init()
 
 	def init(self):
@@ -138,8 +144,31 @@ class DataGUI:
 		# First, the movie panel
 		moviePanel = JPanel( BorderLayout() )
 		moviePanel.add( JLabel( "Movies" ), BorderLayout.NORTH )
-		#for mp in self.experiment.moviePaths:
-
+		tabbedPane = JTabbedPane( stateChanged=self.handleMovieTabChange )
+		for ( counter, mp ) in enumerate( self.experiment.moviePaths ):
+			# Load it into an image
+			imp = IJ.openImage(mp)
+			if imp is None:
+				log( "Could not load image: " + mp )
+				continue
+			# Set current movie to first one loaded
+			if counter == 0:
+				currentMovie = imp
+			self.movies.append( imp )
+			ic = ImageCanvas(imp)
+			self.canvases.append( ic )
+			ic.setPreferredSize( Dimension( ic.getWidth(), ic.getHeight() ) )
+			# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
+			scroll = ScrollPane()
+			scroll.add(ic)
+			tabbedPane.addTab("Movie #" + str(counter), None, scroll, mp)
+		moviePanel.add( tabbedPane, BorderLayout.CENTER )
+		controlPanel = JPanel()
+		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
+		controlPanel.add( JButton("Stop", actionPerformed=self.stopMovie) )
+		controlPanel.add( JButton("Prev", actionPerformed=self.showPreviousMovieFrame) )
+		controlPanel.add( JButton("Next", actionPerformed=self.showNextMovieFrame) )
+		moviePanel.add( controlPanel, BorderLayout.SOUTH )
 		dataPanel.add( moviePanel )
 		# Second, the matlab figure
 		figurePanel = JPanel( BorderLayout() )
@@ -162,3 +191,34 @@ class DataGUI:
 
 	def close(self, event):
 		self.frame.setVisible( False )
+
+	# Updates the image data and the canvas component
+	def updateImage(self):
+		self.currentCanvas.setImageUpdated()
+		self.currentMovie.draw()
+		self.currentCanvas.repaint()
+
+	# Reacts to changes of the movie tab component
+	def handleMovieTabChange(self, event):
+		log( "Tab change" )
+		# Update reference to current movie and current canvas
+		self.currentMovie = self.movies[ event.source.getSelectedIndex() ]
+		self.currentCanvas = self.canvases[ event.source.getSelectedIndex() ]
+
+	# Forwars one frame of the current movie
+	def showNextMovieFrame(self, event):
+		imp = self.currentMovie
+		imp.setSlice( imp.getCurrentSlice() + 1 )
+		self.updateImage()
+
+	# Rewinds one frame of the current movie
+	def showPreviousMovieFrame(self, event):
+		imp = self.currentMovie
+		imp.setSlice( imp.getCurrentSlice() - 1 )
+		self.updateImage()
+
+	def playMovie(self, event):
+		pass
+
+	def stopMovie(self, event):
+		pass
