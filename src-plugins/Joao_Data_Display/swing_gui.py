@@ -7,7 +7,7 @@ import sys
 import time
 from threading import Thread
 from java.lang.System import getProperty
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
 sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
 from helpers import log, exit
@@ -156,7 +156,7 @@ class DataGUI:
 		dataPanel = JPanel( GridLayout( 2, 2 ) )
 		# First, the movie panel
 		moviePanel = JPanel( BorderLayout() )
-		moviePanel.add( JLabel( "Movies" ), BorderLayout.NORTH )
+		moviePanel.setBorder( BorderFactory.createTitledBorder("Movies") )
 		tabbedPane = JTabbedPane( stateChanged=self.handleMovieTabChange )
 		for ( counter, mp ) in enumerate( self.experiment.moviePaths ):
 			# Load it into an image
@@ -189,15 +189,15 @@ class DataGUI:
 		dataPanel.add( moviePanel )
 		# Second, the matlab figure
 		figurePanel = JPanel( BorderLayout() )
-		figurePanel.add( JLabel( "Matlab figure" ), BorderLayout.NORTH )
+		figurePanel.setBorder( BorderFactory.createTitledBorder("Matlab figure") )
 		dataPanel.add( figurePanel )
 		# Third, the excel sheet graph
 		tablePanel = JPanel( BorderLayout() )
-		tablePanel.add( JLabel( "Spreadsheet data" ), BorderLayout.NORTH )
+		tablePanel.setBorder( BorderFactory.createTitledBorder("Spreadsheet data") )
 		dataPanel.add( tablePanel )
 		# Last, the lsm file meta data
 		metadataPanel = JPanel( BorderLayout() )
-		metadataPanel.add( JLabel( "Meta data" ), BorderLayout.NORTH )
+		metadataPanel.setBorder( BorderFactory.createTitledBorder("Meta data") )
 		dataPanel.add( metadataPanel )
 		# Add all to the frame
 		frame.add( dataPanel, BorderLayout.CENTER )
