@@ -1,5 +1,5 @@
 """
-Swing based GUI for Joao's Data Display
+(Mostly) swing based GUI for Joao's Data Display
 """
 
 import os
