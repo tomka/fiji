@@ -131,6 +131,8 @@ class DataGUI:
 	def __init__(self, experiment):
 		self.experiment = experiment
 		self.frame = None
+		self.sliceLabel = None
+		self.stopButton = None
 		self.movies = []
 		self.canvases = []
 		self.currentMovie = None
@@ -176,9 +178,13 @@ class DataGUI:
 		moviePanel.add( tabbedPane, BorderLayout.CENTER )
 		controlPanel = JPanel()
 		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
-		controlPanel.add( JButton("Stop", actionPerformed=self.stopMovie) )
+		self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
+		controlPanel.add( self.stopButton )
 		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
 		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
+		self.sliceLabel = JLabel()
+		self.updateFrameInfo()
+		controlPanel.add( self.sliceLabel )
 		moviePanel.add( controlPanel, BorderLayout.SOUTH )
 		dataPanel.add( moviePanel )
 		# Second, the matlab figure
@@ -196,6 +202,7 @@ class DataGUI:
 		# Add all to the frame
 		frame.add( dataPanel, BorderLayout.CENTER )
 		frame.add( JButton("Close", actionPerformed=self.close), BorderLayout.SOUTH)
+		frame.pack()
 
 	def show(self):
 		self.frame.setVisible( True )
@@ -214,6 +221,14 @@ class DataGUI:
 		# Update reference to current movie and current canvas
 		self.currentMovie = self.movies[ event.source.getSelectedIndex() ]
 		self.currentCanvas = self.canvases[ event.source.getSelectedIndex() ]
+		self.updateFrameInfo()
+
+	def updateFrameInfo(self):
+		if self.sliceLabel is None:
+			return
+		mov = self.currentMovie
+		info = "Frame " + str( mov.getCurrentSlice() ) + "/" + str( mov.getNSlices() )
+		self.sliceLabel.setText( info )
 
 	# Handler for the "next" button
 	def nextFrameButtonHandler(self, event):
@@ -224,30 +239,40 @@ class DataGUI:
 		imp = self.currentMovie
 		imp.setSlice( imp.getCurrentSlice() + 1 )
 		self.updateImage()
+		self.updateFrameInfo()
 
 	# Handler for the "prev" button
 	def prevFrameButtonHandler(self, event):
 		self.showPreviousMovieFrame()
 
 	# Rewinds one frame of the current movie
-	def showPreviousMovieFrame(self, event):
+	def showPreviousMovieFrame(self):
 		imp = self.currentMovie
 		imp.setSlice( imp.getCurrentSlice() - 1 )
 		self.updateImage()
+		self.updateFrameInfo()
 
 	# Plays the current movie with the help pf a new thread
 	def playMovie(self, event):
 		# Don't start another thread if we are already running one
 		if self.moviePlaying:
 			return
+		self.stopButton.setEnabled( True )
 		# Create and start a new thread that forwards the movie
 		self.moviePlaying = True
 		self.animationThread = Thread( target=lambda: animate( self ) )
 		self.animationThread.start()
+		self.stopButton.setText( "Pause" )
 
 	# Stops the current movie playback
 	def stopMovie(self, event):
 		if not self.moviePlaying:
+			self.currentMovie.setSlice( 1 )
+			self.stopButton.setEnabled( False )
+			self.stopButton.setText( "Pause" )
+			self.updateImage()
+			self.updateFrameInfo()
 			return
+		self.stopButton.setText( "Stop" )
 		self.moviePlaying = False
 		self.animationThread.join()
