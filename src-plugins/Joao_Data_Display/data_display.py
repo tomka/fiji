@@ -34,8 +34,10 @@ class Experiment:
 		self.tablePath = None
 		self.init()
 
+	# Creates a new experiment based on looking at all the files
+	# in one folder.
 	@classmethod
-	def implicit(cls, protein, marker, path):
+	def from_dir_implicit(cls, protein, marker, path):
 		name = protein + "-" + marker
 		return Experiment(name, protein, marker, path)
 
@@ -80,7 +82,7 @@ def loadProject(name):
 		experiments = []
 		#experiments.append( Experiment.implicit( "WT", "SpiderGFP", "") )
 		#experiments.append( Experiment.implicit( "crb11A22", "SASVenus", "" ) )
-		experiments.append( Experiment.implicit( "WT", "EcadGFP", "/Volumes/knustlab/Tom/EcadGFP_heterozygous" ) )
+		experiments.append( Experiment.from_dir_implicit( "WT", "EcadGFP", "/Volumes/knustlab/Tom/EcadGFP_heterozygous" ) )
 		project = Project( name, proteins, experiments )
 	else:
 		log("Could not find definition for project with name " + name)
