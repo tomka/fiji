@@ -143,7 +143,7 @@ class DataGUI:
 
 	def init(self):
 		frame = JFrame( "Data Display for experiment " + self.experiment.name )
-		frame.setSize( 400, 300 )
+		frame.setSize( 500, 400 )
 		frame.setLayout( BorderLayout() )
 		frame.setVisible(False)
 		self.frame = frame
