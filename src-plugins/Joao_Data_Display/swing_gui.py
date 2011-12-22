@@ -13,6 +13,7 @@ sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data
 from helpers import log, exit
 from ij import IJ, ImagePlus
 from ij.gui import ImageCanvas
+from structures import Condition, Experiment, Project
 
 # A GUI that supports multiple screens
 class SelectionGUI:
@@ -33,28 +34,28 @@ class SelectionGUI:
 		frame.setLayout( BorderLayout() )
 		# The selection panel covers everything for protein/marker selection
 		selectionPanel = JPanel( BorderLayout() )
-		proteinPanel = JPanel( GridLayout( 0, len( self.project.proteins ) + 1 ) )
+		conditionsPanel = JPanel( GridLayout( 0, len( self.project.conditions ) + 1 ) )
 		# add a JList for all the proteins
-		for p in self.project.proteins:
+		for c in self.project.conditions:
 			panel = JPanel( BorderLayout() )
-			panel.add( JLabel(p.name), BorderLayout.NORTH )
-			markerList = JList(p.markers)
-			markerList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
-			self.lists[ markerList ] = p.name
-			markerList.valueChanged = self.select
-			panel.add( markerList, BorderLayout.CENTER );
-			proteinPanel.add( panel )
+			panel.add( JLabel(c.name), BorderLayout.NORTH )
+			optionList = JList(c.options)
+			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
+			self.lists[ optionList ] = c.name
+			optionList.valueChanged = self.select
+			panel.add( optionList, BorderLayout.CENTER );
+			conditionsPanel.add( panel )
 		# Add experiment list box
 		panel = JPanel( BorderLayout() )
 		panel.add( JLabel( "Experiments" ), BorderLayout.NORTH )
 		self.experimentList = JList(self.experimentModel, valueChanged=self.selectExperiment)
 		panel.add( self.experimentList, BorderLayout.CENTER );
-		proteinPanel.add( panel )
+		conditionsPanel.add( panel )
 		#frame.getContentPane().add(JScrollPane(all))
 		self.continueButton = JButton("Show data", actionPerformed=self.showData)
 		self.continueButton.setEnabled( False )
 		selectionPanel.add( JLabel( "Please select a combination" ), BorderLayout.NORTH )
-		selectionPanel.add( proteinPanel, BorderLayout.CENTER )
+		selectionPanel.add( conditionsPanel, BorderLayout.CENTER )
 		# button panel
 		buttonPanel = JPanel()
 		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.controler.exitProgram() ) )
@@ -87,7 +88,7 @@ class SelectionGUI:
 			l.valueChanged = self.doNothing
 		# get current selection and update lists
 		srcList = event.source
-		marker = srcList.selectedValue
+		option = srcList.selectedValue
 		for l in self.lists.keys():
 			if l is not srcList:
 				l.clearSelection()
@@ -97,9 +98,9 @@ class SelectionGUI:
 		# try to find experiments for that combination
 		self.experimentModel.clear()
 		self.continueButton.setEnabled( False )
-		protein = self.lists[srcList]
+		condition = Condition.fromNameAndOption(self.lists[srcList], option)
 		for e in self.project.experiments:
-			if protein == e.protein and marker == e.marker:
+			if e.condition.matches( condition ):
 				self.experimentModel.addElement(e.name)
 
 	def selectExperiment(self, event):
