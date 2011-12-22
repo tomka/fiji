@@ -91,15 +91,24 @@ def loadProject(name):
 class Controler:
 	def __init__(self, project):
 		self.project = project
+		self.uis = []
 
 	def showSelectionDialog(self):
 		gui = SelectionGUI(self)
+		self.uis.append(gui)
 		gui.show()
 
 	def showDataDialog(self, experiment):
 		gui = DataGUI(experiment)
+		self.uis.append(gui)
 		gui.show()
-	
+
+	def exitProgram(self):
+		# kill available GUIs
+		for ui in self.uis:
+			ui.close()
+		log( "Good bye" )
+
 # Main entry
 def main():
 	log("Loading project")
