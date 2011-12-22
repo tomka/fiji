@@ -55,7 +55,11 @@ class SelectionGUI:
 		self.continueButton.setEnabled( False )
 		selectionPanel.add( JLabel( "Please select a combination" ), BorderLayout.NORTH )
 		selectionPanel.add( proteinPanel, BorderLayout.CENTER )
-		selectionPanel.add( self.continueButton, BorderLayout.SOUTH )
+		# button panel
+		buttonPanel = JPanel()
+		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.controler.exitProgram() ) )
+		buttonPanel.add( self.continueButton )
+		selectionPanel.add( buttonPanel, BorderLayout.SOUTH)
 		frame.add( selectionPanel, BorderLayout.CENTER )
 		frame.pack()
 		frame.setSize( 400, 300 )
@@ -63,6 +67,10 @@ class SelectionGUI:
 		# store as fields
 		self.frame = frame
 		self.selectionPanel = selectionPanel
+
+	def close(self):
+		self.frame.setVisible( False )
+		self.frame.dispose()
 
 	def show(self):
 		self.frame.setVisible( True )
@@ -155,6 +163,19 @@ class DataGUI:
 		# Create and populate the data panel
 		dataPanel = JPanel( GridLayout( 2, 2 ) )
 		# First, the movie panel
+		dataPanel.add( self.createMoviePanel() )
+		# Second, the matlab figure
+		dataPanel.add( self.createFigurePanel() )
+		# Third, the excel sheet graph
+		dataPanel.add( self.createSpreadsheetPanel() )
+		# Last, the lsm file meta data
+		dataPanel.add( self.creaetMetadataPanel() )
+		# Add all to the frame
+		frame.add( dataPanel, BorderLayout.CENTER )
+		frame.add( JButton("Close", actionPerformed=self.closeButtonHandler), BorderLayout.SOUTH)
+		frame.pack()
+
+	def createMoviePanel(self):
 		moviePanel = JPanel( BorderLayout() )
 		moviePanel.setBorder( BorderFactory.createTitledBorder("Movies") )
 		tabbedPane = JTabbedPane( stateChanged=self.handleMovieTabChange )
@@ -186,29 +207,37 @@ class DataGUI:
 		self.updateFrameInfo()
 		controlPanel.add( self.sliceLabel )
 		moviePanel.add( controlPanel, BorderLayout.SOUTH )
-		dataPanel.add( moviePanel )
-		# Second, the matlab figure
+
+		return moviePanel
+
+	def createFigurePanel(self):
 		figurePanel = JPanel( BorderLayout() )
 		figurePanel.setBorder( BorderFactory.createTitledBorder("Matlab figure") )
-		dataPanel.add( figurePanel )
-		# Third, the excel sheet graph
-		tablePanel = JPanel( BorderLayout() )
-		tablePanel.setBorder( BorderFactory.createTitledBorder("Spreadsheet data") )
-		dataPanel.add( tablePanel )
-		# Last, the lsm file meta data
+
+		return figurePanel
+
+	def createSpreadsheetPanel(self):
+		spreadsheetPanel = JPanel( BorderLayout() )
+		spreadsheetPanel.setBorder( BorderFactory.createTitledBorder("Spreadsheet data") )
+
+		return spreadsheetPanel
+
+	def creaetMetadataPanel(self):
 		metadataPanel = JPanel( BorderLayout() )
 		metadataPanel.setBorder( BorderFactory.createTitledBorder("Meta data") )
-		dataPanel.add( metadataPanel )
-		# Add all to the frame
-		frame.add( dataPanel, BorderLayout.CENTER )
-		frame.add( JButton("Close", actionPerformed=self.close), BorderLayout.SOUTH)
-		frame.pack()
+		# Use LOCI to read meta data
+
+		return metadataPanel
+
+	def close(self):
+		self.frame.setVisible( False )
+		self.frame.dispose()
 
 	def show(self):
 		self.frame.setVisible( True )
 
-	def close(self, event):
-		self.frame.setVisible( False )
+	def closeButtonHandler(self, event):
+		self.close()
 
 	# Updates the image data and the canvas component
 	def updateImage(self):
