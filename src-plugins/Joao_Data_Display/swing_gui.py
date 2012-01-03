@@ -34,9 +34,20 @@ class SelectionGUI:
 		frame.setLayout( BorderLayout() )
 		# The selection panel covers everything for protein/marker selection
 		selectionPanel = JPanel( BorderLayout() )
-		conditionsPanel = JPanel( GridLayout( 0, len( self.project.conditions ) + 1 ) )
-		# add a JList for all the proteins
-		for c in self.project.conditions:
+		numLists = len( self.project.exclusiveConditions ) + len( self.project.inclusiveConditions ) + 1
+		conditionsPanel = JPanel( GridLayout( 0, numLists ) )
+		# add a JList for each exclusive condition
+		for c in self.project.exclusiveConditions:
+			panel = JPanel( BorderLayout() )
+			panel.add( JLabel(c.name), BorderLayout.NORTH )
+			optionList = JList(c.options)
+			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
+			self.lists[ optionList ] = c.name
+			optionList.valueChanged = self.select
+			panel.add( optionList, BorderLayout.CENTER );
+			conditionsPanel.add( panel )
+		# add a JList for each inclusive condition
+		for c in self.project.inclusiveConditions:
 			panel = JPanel( BorderLayout() )
 			panel.add( JLabel(c.name), BorderLayout.NORTH )
 			optionList = JList(c.options)

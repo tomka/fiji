@@ -83,7 +83,8 @@ class Experiment:
 # A project has a name, a list of conditions and a list of
 # experiments.
 class Project:
-	def __init__(self, name, conditions, experiments):
+	def __init__(self, name, exclusiveConditions, inclusiveConditions, experiments):
 		self.name = name
-		self.conditions = conditions
+		self.exclusiveConditions = exclusiveConditions
+		self.inclusiveConditions = inclusiveConditions
 		self.experiments = experiments
