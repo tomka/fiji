@@ -82,6 +82,7 @@ def loadYAMLProject( path ):
 	else:
 		log( "Creating filter conditions from available experiments" )
 		log( "--> Not yey supported!" )
+		return None
 	# Setup experiments of project
 	experiments = []
 	log( "Found " + str( len( experiments_data ) ) + " experiment(s)" )
