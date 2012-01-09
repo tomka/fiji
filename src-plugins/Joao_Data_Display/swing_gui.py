@@ -13,7 +13,7 @@ sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data
 from helpers import log, exit
 from ij import IJ, ImagePlus
 from ij.gui import ImageCanvas
-from structures import Condition, Experiment, Project
+from structures import Condition, Experiment, Project, View
 
 # A GUI that supports multiple screens
 class SelectionGUI:
@@ -192,31 +192,44 @@ class DataGUI:
 		frame.setLayout( BorderLayout() )
 		frame.setVisible(False)
 		self.frame = frame
-		# Check if the data folder for the experiment is available
-		if not os.path.exists(self.experiment.path):
-			frame.add( JLabel( "Could not find path: " + self.experiment.path), BorderLayout.NORTH )
-			return
-		frame.add( JLabel( "Data path: " + self.experiment.path ), BorderLayout.NORTH )
+		# Find out how many views there are and create a layout for this batch
+		numViews = len( self.experiment.views )
+		searchingLayout = True
+		xDim = 1
+		yDim = 1
+		while searchingLayout:
+			searchingLayout = xDim * yDim < numViews
+			if not searchingLayout:
+				break
+			if yDim < xDim:
+				yDim = yDim + 1
+			else:
+				xDim = xDim + 1
+		log( "Creating space for " + str(xDim) + "x" + str(yDim) + " views ("  + str(numViews) + " views are available)")
 		# Create and populate the data panel
-		dataPanel = JPanel( GridLayout( 2, 2 ) )
-		# First, the movie panel
-		dataPanel.add( self.createMoviePanel() )
-		# Second, the matlab figure
-		dataPanel.add( self.createFigurePanel() )
-		# Third, the excel sheet graph
-		dataPanel.add( self.createSpreadsheetPanel() )
-		# Last, the lsm file meta data
-		dataPanel.add( self.creaetMetadataPanel() )
+		dataPanel = JPanel( GridLayout( yDim, xDim ) )
+		# Iterate over all views and create panels
+		for v in self.experiment.views:
+			if v.name == View.movieName:
+				dataPanel.add( self.createMoviePanel(v) )
+			elif v.name == View.figureName:
+				dataPanel.add( self.createFigurePanel(v) )
+			elif v.name == View.metadataName:
+				dataPanel.add( self.createSpreadsheetPanel(v) )
+			elif v.name == View.tableName:
+				dataPanel.add( self.creaetMetadataPanel(v) )
+			else:
+				log( "Don't know view: " + v.name )
 		# Add all to the frame
 		frame.add( dataPanel, BorderLayout.CENTER )
 		frame.add( JButton("Close", actionPerformed=self.closeButtonHandler), BorderLayout.SOUTH)
 		frame.pack()
 
-	def createMoviePanel(self):
+	def createMoviePanel(self, view):
 		moviePanel = JPanel( BorderLayout() )
 		moviePanel.setBorder( BorderFactory.createTitledBorder("Movies") )
 		tabbedPane = JTabbedPane( stateChanged=self.handleMovieTabChange )
-		for ( counter, mp ) in enumerate( self.experiment.moviePaths ):
+		for ( counter, mp ) in enumerate( view.paths ):
 			# Load it into an image
 			imp = IJ.openImage(mp)
 			if imp is None:
@@ -247,19 +260,19 @@ class DataGUI:
 
 		return moviePanel
 
-	def createFigurePanel(self):
+	def createFigurePanel(self, view):
 		figurePanel = JPanel( BorderLayout() )
 		figurePanel.setBorder( BorderFactory.createTitledBorder("Matlab figure") )
 
 		return figurePanel
 
-	def createSpreadsheetPanel(self):
+	def createSpreadsheetPanel(self, view):
 		spreadsheetPanel = JPanel( BorderLayout() )
 		spreadsheetPanel.setBorder( BorderFactory.createTitledBorder("Spreadsheet data") )
 
 		return spreadsheetPanel
 
-	def creaetMetadataPanel(self):
+	def creaetMetadataPanel(self, view):
 		metadataPanel = JPanel( BorderLayout() )
 		metadataPanel.setBorder( BorderFactory.createTitledBorder("Meta data") )
 		# Use LOCI to read meta data
