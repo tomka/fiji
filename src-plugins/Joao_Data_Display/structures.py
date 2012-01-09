@@ -38,9 +38,9 @@ class Condition:
 
 # An experiment which was made under certain conditions.
 class Experiment:
-	def __init__(self, name, condition, path):
+	def __init__(self, name, conditions, path):
 		self.name = name
-		self.condition = condition
+		self.conditions = conditions
 		self.path = path
 		self.moviePaths = []
 		self.figurePath = None
@@ -79,6 +79,16 @@ class Experiment:
 			# look for spreadsheed data (*.xls)
 			elif filename.endswith(".xls"):
 				self.tablePath = filePath
+
+	def matches(self, testConditions):
+		for tc in testConditions:
+			condMatches = False
+			for c in self.conditions:
+				condMatches = condMatches or c.matches(tc)
+			if not condMatches:
+				return False
+		return True
+
 
 # A project has a name, a list of conditions and a list of
 # experiments.

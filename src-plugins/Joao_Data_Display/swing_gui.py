@@ -25,7 +25,10 @@ class SelectionGUI:
 		self.continueButton = None
 		self.experimentModel = DefaultListModel()
 		self.experimentList = None
-		self.lists = {}
+		self.exclusiveLists = {}
+		self.inclusiveLists = {}
+		self.exclusiveCondition = None
+		self.inclusiveConditions = {}
 		self.init()
 
 	def init(self):
@@ -42,8 +45,8 @@ class SelectionGUI:
 			panel.add( JLabel(c.name), BorderLayout.NORTH )
 			optionList = JList(c.options)
 			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
-			self.lists[ optionList ] = c.name
-			optionList.valueChanged = self.select
+			self.exclusiveLists[ optionList ] = c.name
+			optionList.valueChanged = self.selectExclusive
 			panel.add( optionList, BorderLayout.CENTER );
 			conditionsPanel.add( panel )
 		# add a JList for each inclusive condition
@@ -52,8 +55,8 @@ class SelectionGUI:
 			panel.add( JLabel(c.name), BorderLayout.NORTH )
 			optionList = JList(c.options)
 			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
-			self.lists[ optionList ] = c.name
-			optionList.valueChanged = self.select
+			self.inclusiveLists[ optionList ] = c.name
+			optionList.valueChanged = self.selectInclusive
 			panel.add( optionList, BorderLayout.CENTER );
 			conditionsPanel.add( panel )
 		# Add experiment list box
@@ -90,28 +93,50 @@ class SelectionGUI:
 	def doNothing(self, event):
 		return
 
-	def select(self, event):
+	def selectExclusive(self, event):
 		# react only to final selection event
 		if event.getValueIsAdjusting():
 			return
 		# remove all event handlers
-		for l in self.lists.keys():
+		for l in self.exclusiveLists.keys():
 			l.valueChanged = self.doNothing
 		# get current selection and update lists
 		srcList = event.source
 		option = srcList.selectedValue
-		for l in self.lists.keys():
+		for l in self.exclusiveLists.keys():
 			if l is not srcList:
 				l.clearSelection()
 		# add all event handlers
-		for l in self.lists.keys():
-			l.valueChanged = self.select
-		# try to find experiments for that combination
+		for l in self.exclusiveLists.keys():
+			l.valueChanged = self.selectExclusive
+		# create condition for selection
+		self.exclusiveCondition = Condition.fromNameAndOption(self.exclusiveLists[srcList], option)
+		# try to find a valid experiment
+		self.showValidExperiments()
+
+	def selectInclusive(self, event):
+		# react only to final selection event
+		if event.getValueIsAdjusting():
+			return
+		# get current selection and option
+		srcList = event.source
+		option = srcList.selectedValue
+		# walk over all inclusive lists and get conditions
+		self.inclusiveConditions = []
+		for l in self.inclusiveLists.keys():
+			option = l.selectedValue
+			condition = Condition.fromNameAndOption(self.inclusiveLists[l], option)
+			self.inclusiveConditions.append( condition )
+		# try to find a valid experiment
+		self.showValidExperiments()
+
+	def showValidExperiments(self):
 		self.experimentModel.clear()
 		self.continueButton.setEnabled( False )
-		condition = Condition.fromNameAndOption(self.lists[srcList], option)
 		for e in self.project.experiments:
-			if e.condition.matches( condition ):
+			exclusiveMatches = e.matches( [ self.exclusiveCondition ] )
+			inclusiveMatches = e.matches( self.inclusiveConditions )
+			if exclusiveMatches and inclusiveMatches:
 				self.experimentModel.addElement(e.name)
 
 	def selectExperiment(self, event):
