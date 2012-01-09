@@ -36,49 +36,76 @@ class Condition:
 				return False
 		return True
 
+# A views is a named container for a set of file paths.
+class View:
+	movieName = "movie"
+	figureName = "figure"
+	metadataName = "metadata"
+	tableName = "table"
+
+	def __init__(self, name, paths):
+		self.name = name
+		self.paths = paths
+
 # An experiment which was made under certain conditions.
 class Experiment:
-	def __init__(self, name, conditions, path):
+	def __init__(self, name, conditions, views):
 		self.name = name
 		self.conditions = conditions
-		self.path = path
-		self.moviePaths = []
-		self.figurePath = None
-		self.rawPath = None
-		self.tablePath = None
-		self.init()
+		self.views = views
 
 	# Creates a new experiment based on looking at all the files
-	# in one folder.
+	# in one folder. It expects one Condition and creates the
+	# name implicitely out of the conditions name and its options.
 	@classmethod
-	def fromConditionImplicit(cls, condition, path):
+	def baseOnPathImplicit(cls, condition, path):
 		name = condition.name + "-" + "-".join( condition.options )
-		return Experiment(name, condition, path)
+		return Experiment.baseOnPath(name, [condition], path)
 
-	def init(self):
+	# Creates a new experiment based on looking at all the files
+	# in one folder. Expects a list of conditions.
+	@classmethod
+	def baseOnPath(self, name, conditions, path):
 		# Check if the path is actually valid
-		if not os.path.exists(self.path):
+		if not os.path.exists(path):
 			log( "Could not find path: " + self.path)
 			raise Exception, "Could not find experiment base path: " + self.path
+		# Init lists of known views
+		movies = []
+		figures = []
+		metafiles = []
+		tables = []
 		# Look at the files
-		for filename in os.listdir(self.path):
-			filePath = os.path.join( self.path, filename )
+		for filename in os.listdir(path):
+			filePath = os.path.join( path, filename )
 			log( filePath )
 			# don't allow folders
 			if os.path.isdir( filePath ):
 				continue
 			# look for movies (*.avi)
 			if filename.endswith(".avi"):
-				self.moviePaths.append( filePath )
+				movies.append( filePath )
 			# look for matlab figures (*.fig)
 			elif filename.endswith(".fig"):
-				self.figurePath = filePath
+				figures.append( filePath )
 			# look for raw data files (*.lsm)
 			elif filename.endswith(".lsm"):
-				self.rawPath = filePath
+				metafiles.append( filePath )
 			# look for spreadsheed data (*.xls)
 			elif filename.endswith(".xls"):
-				self.tablePath = filePath
+				tables.append( filePath )
+		# Check what we've got and create views
+		views = []
+		if len(movies) > 0:
+			views.append( View( View.movieName, movies ) )
+		if len(figures) > 0:
+			views.append( View( View.figureName, figures ) )
+		if len(metafiles) > 0:
+			views.append( View( View.metadataName, metafiles ) )
+		if len(tables) > 0:
+			views.append( View( View.tableName, tables ) )
+		# create new experiment
+		return Experiment(name, conditions, views)
 
 	def matches(self, testConditions):
 		for tc in testConditions:

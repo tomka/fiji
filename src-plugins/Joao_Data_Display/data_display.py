@@ -25,7 +25,7 @@ def loadSampleProject( name ):
 		inConditions = []
 		inConditions.append( Condition( "Position", ["anterior", "posterior"] ) )
 		experiments = []
-		experiments.append( Experiment.fromConditionImplicit( \
+		experiments.append( Experiment.baseOnPathImplicit( \
 			Condition.fromNameAndOption("Wildtype", "EcadGFP"), \
 			"/Volumes/knustlab/Tom/EcadGFP_heterozygous" ) )
 		project = Project( name, exConditions, inConditions, experiments )
@@ -99,7 +99,7 @@ def loadYAMLProject( path ):
 		if e.containsKey( "views" ):
 			continue
 		elif e.containsKey( "directory" ):
-			experiments.append( Experiment( name, exp_conditions, e.get( "directory" ) ) )
+			experiments.append( Experiment.baseOnPath( name, exp_conditions, e.get( "directory" ) ) )
 
 	return Project( projectName, exConditions, inConditions, experiments )
 
