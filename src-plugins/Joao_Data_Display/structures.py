@@ -39,9 +39,9 @@ class Condition:
 # A views is a named container for a set of file paths.
 class View:
 	movieName = "movie"
-	figureName = "figure"
+	figureName = "matlab"
 	metadataName = "metadata"
-	tableName = "table"
+	tableName = "spreadsheet"
 
 	def __init__(self, name, paths):
 		self.name = name
