@@ -68,8 +68,8 @@ class Experiment:
 	def baseOnPath(self, name, conditions, path):
 		# Check if the path is actually valid
 		if not os.path.exists(path):
-			log( "Could not find path: " + self.path)
-			raise Exception, "Could not find experiment base path: " + self.path
+			log( "Could not find path: " + path)
+			raise Exception, "Could not find experiment base path: " + path
 		# Init lists of known views
 		movies = []
 		figures = []
