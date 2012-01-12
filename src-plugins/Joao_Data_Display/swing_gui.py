@@ -164,26 +164,10 @@ class SelectionGUI:
 		log( "Showing data for experiment " + experiment.name )
 		self.controler.showDataDialog( experiment )
 
-# A function that repeatedly forwards to the next frame
-# of the current movie
-def animate( gui ):
-	while gui.moviePlaying:
-		gui.showNextMovieFrame()
-		time.sleep( 1.0 / 7.0 )
-
 # A GUI that displays information for one particular experiment
 class DataGUI:
 	def __init__(self, experiment):
 		self.experiment = experiment
-		self.frame = None
-		self.sliceLabel = None
-		self.stopButton = None
-		self.movies = []
-		self.canvases = []
-		self.currentMovie = None
-		self.currentCanvas = None
-		self.moviePlaying = False
-		self.animationThread = None
 		self.init()
 
 	def init(self):
@@ -211,73 +195,19 @@ class DataGUI:
 		# Iterate over all views and create panels
 		for v in self.experiment.views:
 			if v.name == View.movieName:
-				dataPanel.add( self.createMoviePanel(v) )
+				dataPanel.add( MovieViewPanel(v) )
 			elif v.name == View.figureName:
-				dataPanel.add( self.createFigurePanel(v) )
+				dataPanel.add( FigureViewPanel(v) )
 			elif v.name == View.metadataName:
-				dataPanel.add( self.createSpreadsheetPanel(v) )
+				dataPanel.add( SpreadsheetViewPanel(v) )
 			elif v.name == View.tableName:
-				dataPanel.add( self.creaetMetadataPanel(v) )
+				dataPanel.add( MetaDataViewPanel(v) )
 			else:
 				log( "Don't know view: " + v.name )
 		# Add all to the frame
 		frame.add( dataPanel, BorderLayout.CENTER )
 		frame.add( JButton("Close", actionPerformed=self.closeButtonHandler), BorderLayout.SOUTH)
 		frame.pack()
-
-	def createMoviePanel(self, view):
-		moviePanel = JPanel( BorderLayout() )
-		moviePanel.setBorder( BorderFactory.createTitledBorder("Movies") )
-		tabbedPane = JTabbedPane( stateChanged=self.handleMovieTabChange )
-		for ( counter, mp ) in enumerate( view.paths ):
-			# Load it into an image
-			imp = IJ.openImage(mp)
-			if imp is None:
-				log( "Could not load image: " + mp )
-				continue
-			# Set current movie to first one loaded
-			if counter == 0:
-				currentMovie = imp
-			self.movies.append( imp )
-			ic = ImageCanvas(imp)
-			self.canvases.append( ic )
-			ic.setPreferredSize( Dimension( ic.getWidth(), ic.getHeight() ) )
-			# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
-			scroll = ScrollPane()
-			scroll.add(ic)
-			tabbedPane.addTab("Movie #" + str(counter), None, scroll, mp)
-		moviePanel.add( tabbedPane, BorderLayout.CENTER )
-		controlPanel = JPanel()
-		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
-		self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
-		controlPanel.add( self.stopButton )
-		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
-		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
-		self.sliceLabel = JLabel()
-		self.updateFrameInfo()
-		controlPanel.add( self.sliceLabel )
-		moviePanel.add( controlPanel, BorderLayout.SOUTH )
-
-		return moviePanel
-
-	def createFigurePanel(self, view):
-		figurePanel = JPanel( BorderLayout() )
-		figurePanel.setBorder( BorderFactory.createTitledBorder("Matlab figure") )
-
-		return figurePanel
-
-	def createSpreadsheetPanel(self, view):
-		spreadsheetPanel = JPanel( BorderLayout() )
-		spreadsheetPanel.setBorder( BorderFactory.createTitledBorder("Spreadsheet data") )
-
-		return spreadsheetPanel
-
-	def creaetMetadataPanel(self, view):
-		metadataPanel = JPanel( BorderLayout() )
-		metadataPanel.setBorder( BorderFactory.createTitledBorder("Meta data") )
-		# Use LOCI to read meta data
-
-		return metadataPanel
 
 	def close(self):
 		self.frame.setVisible( False )
@@ -289,23 +219,111 @@ class DataGUI:
 	def closeButtonHandler(self, event):
 		self.close()
 
+class ViewPanel( JPanel ):
+	"""A common panel for displaying views"""
+	def __init__( self, view, title ):
+		super( ViewPanel, self ).__init__( BorderLayout() )
+		self.currentFile = None
+		self.files = []
+		self.view = view
+		self.title = title
+
+		self.setBorder( BorderFactory.createTitledBorder( title ) )
+		tabbedPane = JTabbedPane( stateChanged=self.handleTabChangeHook )
+		for ( counter, p ) in enumerate( view.paths ):
+			# Load it into an image
+			data = self.loadData( p )
+			if data is None:
+				log( "Could not load file: " + p )
+				continue
+			# Set current movie to first one loaded
+			if counter == 0:
+				self.currentFile = data
+			self.files.append( data )
+			component = self.getContent( data )
+			# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
+			scroll = ScrollPane()
+			scroll.add( component )
+			tabbedPane.addTab( self.getTabText( counter ), None, scroll, p )
+		self.add( tabbedPane, BorderLayout.CENTER )
+
+	def loadData( self, filepath ):
+		pass
+
+	def handleTabChangeHook( self, event ):
+		self.currentFile = self.files[ event.source.getSelectedIndex() ]
+		self.handleTabChange( event )
+
+	def handleTabChange( self, event ):
+		pass
+
+	def getContent( self, data ):
+		pass
+
+	def getTabText( self, counter ):
+		pass
+
+# A function that repeatedly forwards to the next frame
+# of the current movie
+def animate( gui ):
+	while gui.moviePlaying:
+		gui.showNextMovieFrame()
+		time.sleep( 1.0 / 7.0 )
+
+class MovieViewPanel( ViewPanel ):
+	"""A panel to view movie files"""
+	def __init__( self, view ):
+		# Set up members
+		self.canvases = []
+		self.frame = None
+		self.sliceLabel = None
+		self.stopButton = None
+		self.canvases = []
+		self.currentCanvas = None
+		self.moviePlaying = False
+		self.animationThread = None
+		# Init base class
+		super( MovieViewPanel, self ).__init__( view, "Movies" )
+		# Add control components
+		controlPanel = JPanel()
+		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
+		self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
+		controlPanel.add( self.stopButton )
+		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
+		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
+		self.sliceLabel = JLabel()
+		self.updateFrameInfo()
+		controlPanel.add( self.sliceLabel )
+		self.add( controlPanel, BorderLayout.SOUTH )
+
+	def loadData( self, filepath ):
+		return IJ.openImage( filepath )
+
+	def getContent( self, data ):
+		ic = ImageCanvas( data )
+		self.canvases.append( ic )
+		ic.setPreferredSize( Dimension( ic.getWidth(), ic.getHeight() ) )
+		return ic
+
+	def getTabText( self, counter ):
+		return "Movie #" + str(counter)
+
 	# Updates the image data and the canvas component
 	def updateImage(self):
 		self.currentCanvas.setImageUpdated()
-		self.currentMovie.draw()
+		self.currentFile.draw()
 		self.currentCanvas.repaint()
 
 	# Reacts to changes of the movie tab component
-	def handleMovieTabChange(self, event):
-		# Update reference to current movie and current canvas
-		self.currentMovie = self.movies[ event.source.getSelectedIndex() ]
+	def handleTabChange(self, event):
+		# Update reference to current canvas
 		self.currentCanvas = self.canvases[ event.source.getSelectedIndex() ]
 		self.updateFrameInfo()
 
 	def updateFrameInfo(self):
 		if self.sliceLabel is None:
 			return
-		mov = self.currentMovie
+		mov = self.currentFile
 		info = "Frame " + str( mov.getCurrentSlice() ) + "/" + str( mov.getNSlices() )
 		self.sliceLabel.setText( info )
 
@@ -315,7 +333,7 @@ class DataGUI:
 
 	# Forwars one frame of the current movie
 	def showNextMovieFrame( self ):
-		imp = self.currentMovie
+		imp = self.currentFile
 		imp.setSlice( imp.getCurrentSlice() + 1 )
 		self.updateImage()
 		self.updateFrameInfo()
@@ -326,7 +344,7 @@ class DataGUI:
 
 	# Rewinds one frame of the current movie
 	def showPreviousMovieFrame(self):
-		imp = self.currentMovie
+		imp = self.currentFile
 		imp.setSlice( imp.getCurrentSlice() - 1 )
 		self.updateImage()
 		self.updateFrameInfo()
@@ -346,7 +364,7 @@ class DataGUI:
 	# Stops the current movie playback
 	def stopMovie(self, event):
 		if not self.moviePlaying:
-			self.currentMovie.setSlice( 1 )
+			self.currentFile.setSlice( 1 )
 			self.stopButton.setEnabled( False )
 			self.stopButton.setText( "Pause" )
 			self.updateImage()
@@ -355,3 +373,22 @@ class DataGUI:
 		self.stopButton.setText( "Stop" )
 		self.moviePlaying = False
 		self.animationThread.join()
+
+class MetaDataViewPanel( ViewPanel ):
+	"""A panel to view meta data files"""
+	def __init__( self, view ):
+		super( MetaDataViewPanel, self ).__init__( view, "Meta data" )
+		# Use LOCI to read meta data
+		pass
+
+class FigureViewPanel( ViewPanel ):
+	"""A panel to view Matlab figure files"""
+	def __init__( self, view ):
+		super( FigureViewPanel, self ).__init__( view, "Matlab figures" )
+		pass
+
+class SpreadsheetViewPanel( ViewPanel ):
+	"""A panel to view spreadsheet data files"""
+	def __init__( self, view ):
+		super( SpreadsheetViewPanel, self ).__init__( view, "Spreadsheet data" )
+		pass
