@@ -13,7 +13,7 @@ from java.lang.System import getProperty
 sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
 from swing_gui import SelectionGUI, DataGUI
 from helpers import log, exit
-from structures import Condition, Experiment, Project
+from structures import Condition, Experiment, Project, View
 
 # Creates projects based on a name
 def loadSampleProject( name ):
@@ -97,7 +97,14 @@ def loadYAMLProject( path ):
 			exp_conditions.append( Condition( c, options ) )
 		# Look for views or directory, prefer views.
 		if e.containsKey( "views" ):
-			continue
+			views = []
+			views_data = e.get( "views" )
+			for v in views_data:
+				paths = []
+				for p in views_data.get( v ):
+					paths.append( p )
+				views.append( View( v, paths ) )
+			experiments.append( Experiment( name, exp_conditions, views ) )
 		elif e.containsKey( "directory" ):
 			experiments.append( Experiment.baseOnPath( name, exp_conditions, e.get( "directory" ) ) )
 
