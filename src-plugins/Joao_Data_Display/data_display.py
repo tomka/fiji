@@ -129,7 +129,7 @@ class Controler:
 # Main entry
 def main():
 	log("Loading project")
-	project = loadYAMLProject( "/Users/tomka/tmp/joao-experiments.yml" )
+	project = loadYAMLProject( "/home/tom/tmp/joao-experiments.yml" )
 	#project = loadSampleProject( "Joao" )
 	if project is None:
 		exit("Loading failed, exiting")
