@@ -555,13 +555,16 @@ all = JPanel()
 layout = GridLayout(18, 2)
 all.setLayout(layout)
 
+def exit():
+	frame.setVisible(False)
+
 extTf = JTextField(".*\.oif")
 chTf = JTextField(str(referenceChannel))
 xTilesTf = JTextField(str(xTiles))
 yTilesTf = JTextField(str(yTiles))
 thresholdTf = JTextField(str(thresholdR))
 convFactorTf = JTextField(str(conversionFactor))
-outputTf = JTextField(outputDir)
+outputTf = JTextField(outputDir, 30)
 tilingInfoTf = JTextField(tilingInfoFile)
 tilingDescTf = JTextField(tilingDesc)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
