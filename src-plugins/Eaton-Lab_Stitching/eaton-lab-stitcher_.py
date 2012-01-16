@@ -120,7 +120,8 @@ def saveInfoFile(path):
 
 # A closs for storing image information
 class ImageInfo():
-	def __init__(self, filename):
+	def __init__(self, path, filename):
+		self.path = path
 		self.filename = filename
 		self.xpos = 0.0
 		self.ypos = 0.0
@@ -156,7 +157,6 @@ def extractMetadata():
 	# check out all files in source folder
 	for filename in sourceFiles:
 		log("\tloading " + filename)
-		imageInfo = ImageInfo(filename)
 		# Import the image
 		path = srcDir + filename
 		options = ImporterOptions()
@@ -177,7 +177,7 @@ def extractMetadata():
 		#	log("\t\terror: requested channel number (" + str(channel) + ") is larger than available channels")
 		#	raise StandardError("Requested Channel number too large")
 		sourceFilesCalibration[filename] = imps[0].getCalibration()
-		sourceFileInfos[filename] = ImageInfo(filename)
+		sourceFileInfos[filename] = ImageInfo(srcDir, filename)
 
 # Iterates the xml document and looks for image information
 # for a specified filename
@@ -226,20 +226,22 @@ def combineZStacks(stackInfo):
 	global sourceFiles
 	global sourceFileInfos
 	log("\tcombining Z stacks")
+	# make sure the tmpDir exists
+	if not os.path.exists(tmpDir):
+		log("\t\tError: could not find temp. directory")
 	newSourceFiles = []
 	newSourceFileInfos = {}
 	#newSourceFilesCalibration = {}
 	updateSourceDir = False
 	for posHash in stackInfo:
 		stacks = stackInfo[posHash]
-		log("\t\tLooking at position: " + posHash)
+		log("\t\tLooking at offset hash: " + posHash)
 		if len(stacks) < 2:
 			# continue with next pos if there is nothing to concatenate
-			log("\t\t\tNot enough stacks to concatenate")
+			log("\t\t\tNot enough stacks to concatenate, using single original file")
 			name = stacks[0].filename
 			newSourceFiles.append(name)
 			newSourceFileInfos[name] = stacks[0]
-			log("\t\t\tTODO: Move non-enough-stacks files to tmpDir")
 			continue
 		# combine the stacks
 		macro = "setBatchMode(true);\n"
@@ -254,7 +256,7 @@ def combineZStacks(stackInfo):
 			log("\t\t\tstack: " + str(s))
 			# get top stack
 			if file1 is None:
-				file1 = os.path.join(srcDir, s.filename)
+				file1 = os.path.join(s.path, s.filename)
 				file1Name = s.filename
 				outputName += file1Name + ".tiff"
 				topImageInfo = s
@@ -262,7 +264,7 @@ def combineZStacks(stackInfo):
 				continue
 			# get next stack
 			if file2 is None:
-				file2 = os.path.join(srcDir, s.filename)
+				file2 = os.path.join(s.path, s.filename)
 				file2Name = s.filename
 				macro += "run(\"Bio-Formats\", \"open=[" + file2 + "] view=Hyperstack stack_order=XYCZT display_metadata=false\");\n"
 			# concatenate
@@ -274,10 +276,16 @@ def combineZStacks(stackInfo):
 		outputPath = os.path.join(tmpDir, outputName)
 		macro += "saveAs(\"Tiff\", \"" + outputPath + "\");\n"
 		macro += "close();\n"
-		IJ.runMacro(macro)
+		macroResult = IJ.runMacro(macro)
+		if macroResult is None:
+			log("\t\t\tmacro returned: None")
+		else:
+			log("\t\t\tmacro returned: " + macroResult)
+		# print macro
+		# IJ.log(macro)
 		#Update the source image information
 		newSourceFiles.append(outputName)
-		ii = ImageInfo(outputName)
+		ii = ImageInfo(tmpDir, outputName)
 		ii.xpos = topImageInfo.xpos
 		ii.ypos = topImageInfo.ypos
 		ii.xOffset = topImageInfo.xOffset
@@ -415,7 +423,8 @@ def stitch():
 	index = 0
 	for f in sourceFiles:
 		fi = sourceFileInfos[f]
-		element = ImageCollectionElement( File( srcDir, fi.filename ), index )
+		element = ImageCollectionElement( File( fi.path, fi.filename ), index )
+		log("\tadding file to pool: " + fi.path + "/" + fi.filename)
 		index = index + 1
 		element.setDimensionality( dim )
 		if dim == 3:
@@ -480,7 +489,7 @@ def stitch():
 	# create dimension information for info.yml
 	width = imp.getWidth()
 	height = imp.getHeight()
-	numSlices = imp.getStackSize()
+	numSlices = imp.getNSlices()
 	log("\tcreated result image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
 	dimension = "(" + str(width) + "," + str(height) + "," + str(numSlices) + ")"
 
