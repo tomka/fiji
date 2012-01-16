@@ -56,9 +56,9 @@ yTiles = 0
 dim = 3
 rgbOrder = "rgb"
 alpha = 1.5
-thresholdR = 0.4
-thresholdDisplacementRelative = 2.5
-thresholdDisplacementAbsolute = 3.5
+thresholdR = 0.6
+thresholdDisplacementRelative = 200.5
+thresholdDisplacementAbsolute = 300.5
 fusionMethod = "Linear Blending"
 preCombineZStacks = True
 # Information about the current image
