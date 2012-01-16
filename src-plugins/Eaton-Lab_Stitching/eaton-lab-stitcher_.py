@@ -547,6 +547,7 @@ def doWork(extFilter):
 	saveWrapperLog(outputDir + "/wrapper.log")
 	saveStitcherLog(outputDir + "/stitcher.log")
 	saveInfoFile(outputDir + "/info.yml")
+	exit()
 
 # Create the GUI and start it up
 frame = JFrame("Options")
