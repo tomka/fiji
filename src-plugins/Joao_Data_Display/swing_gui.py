@@ -378,8 +378,11 @@ class MetaDataViewPanel( ViewPanel ):
 	"""A panel to view meta data files"""
 	def __init__( self, view ):
 		super( MetaDataViewPanel, self ).__init__( view, "Meta data" )
-		# Use LOCI to read meta data
 		pass
+
+	def loadData( self, filepath ):
+		"""Override super class method and use LOCI to read meta data in."""
+		return IJ.openImage( filepath )
 
 class FigureViewPanel( ViewPanel ):
 	"""A panel to view Matlab figure files"""
