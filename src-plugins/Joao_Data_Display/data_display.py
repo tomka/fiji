@@ -106,7 +106,37 @@ def loadYAMLProject( path ):
 				views.append( View( v, paths ) )
 			experiments.append( Experiment( name, exp_conditions, views ) )
 		elif e.containsKey( "directory" ):
-			experiments.append( Experiment.baseOnPath( name, exp_conditions, e.get( "directory" ) ) )
+			path = e.get( "directory" )
+			# Check if the path contains subfolders. If so, try to create
+			# seperate experiments out of it and use the folder names as
+			# experiment names.
+			expFiles = []
+			expFolders = []
+			for p in os.listdir( path ):
+				fullpath = os.path.join( path, p )
+				if os.path.isdir( fullpath ):
+					expFolders.append( p )
+				else:
+					expFiles.append( p )
+			nFiles = len( expFiles )
+			nFolders = len( expFolders )
+			# Make sure we got files OR folders
+			if nFiles > 0 and nFolders > 0:
+				log("The experiment date folder \"" + path + "\" contains both, files (" + str(nFiles) + ") and folders (" + str(nFolders) + "). Please have only files OR (experiment-)folders in there.")
+				return None
+			if nFiles > 0:
+				# Add experiment based on a folder with files only
+				experiments.append( Experiment.baseOnPath( name, exp_conditions, path ) )
+			elif nFolders > 0:
+				# Add experiments based on the sub-folders. Use the sub-folder name
+				# as experiment names.
+				for p in expFolders:
+					fullpath = os.path.join( path, p )
+					log("  Using subfolder: " + fullpath)
+					experiments.append( Experiment.baseOnPath( p, exp_conditions, fullpath ) )
+			else:
+				log("The experiment date folder \"" + path + "\" contains no files and no folders. Please correct that.")
+				return None
 
 	return Project( projectName, exConditions, inConditions, experiments )
 
