@@ -104,6 +104,7 @@ class Experiment:
 			views.append( View( View.metadataName, metafiles ) )
 		if len(tables) > 0:
 			views.append( View( View.tableName, tables ) )
+		log("  scanned directory " + path + " and created " + str(len(views)) + " views")
 		# create new experiment
 		return Experiment(name, conditions, views)
 
