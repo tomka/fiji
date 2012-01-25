@@ -70,6 +70,7 @@ handleRGB = "Red, Green and Blue"
 invertXOffset = False
 invertYOffset = False
 logMessages = []
+writeToDisk = False
 
 # Choose a directory with lots of stacks
 dc = DirectoryChooser("Choose directory with stacks")
@@ -417,6 +418,7 @@ def stitch():
 	params.timeSelect = 0
 	params.checkPeaks = 5
 	params.dimensionality = dim;
+	output = outputDir if writeToDisk else None
 	
 	elements = ArrayList()
 	numTimePoints = 1
@@ -444,7 +446,8 @@ def stitch():
 		if elements.size() == 1:
 			# if we got only one image, treat it as the result
 			log("\tusing the single available image as result")
-			imp = elements.get(0).open()
+			openVirtual = False
+			imp = elements.get(0).open(openVirtual)
 			closeElements = False
 		else:
 			# cancel if we have more than one source files
@@ -478,30 +481,33 @@ def stitch():
 				models.add( imt.getModel() )
 
 		if is32bit:
-			imp = Fusion.fuse( FloatType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+			imp = Fusion.fuse( FloatType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod, output )
 		elif is16bit:
-			imp = Fusion.fuse( UnsignedShortType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+			imp = Fusion.fuse( UnsignedShortType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod, output )
 		elif is8bit:
-			imp = Fusion.fuse( UnsignedByteType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod )
+			imp = Fusion.fuse( UnsignedByteType(), images, models, params.dimensionality, params.subpixelAccuracy, params.fusionMethod, output )
 		else:
 			log( "unknown image type for fusion." )
 
-	# create dimension information for info.yml
-	width = imp.getWidth()
-	height = imp.getHeight()
-	numSlices = imp.getNSlices()
-	log("\tcreated result image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
-	dimension = "(" + str(width) + "," + str(height) + "," + str(numSlices) + ")"
+	if not writeToDisk:
+		# create dimension information for info.yml
+		width = imp.getWidth()
+		height = imp.getHeight()
+		numSlices = imp.getNSlices()
+		log("\tcreated result image with dimensions " + str(width) + "x" + str(height) + " and " + str(numSlices) + " slices")
+		dimension = "(" + str(width) + "," + str(height) + "," + str(numSlices) + ")"
 
-	try:
-		resultPath = outputDir + "/stitched_composite.tiff"
-		log("Saving result to: " + resultPath)
-		IJ.saveAs(imp, "tif", resultPath)
-	except:
-		log("ERR: Could not save file")
-
-	if showResult:
-		imp.show()
+		try:
+			resultPath = outputDir + "/stitched_composite.tiff"
+			log("Saving result to: " + resultPath)
+			IJ.saveAs(imp, "tif", resultPath)
+		except:
+			log("ERR: Could not save file")
+	
+		if showResult:
+			imp.show()
+	else:
+		log("The resulting slices are available in: " + outputDir)
 
 	# close all images
 	if closeElements:
@@ -552,7 +558,7 @@ def doWork(extFilter):
 # Create the GUI and start it up
 frame = JFrame("Options")
 all = JPanel()
-layout = GridLayout(18, 2)
+layout = GridLayout(19, 2)
 all.setLayout(layout)
 
 def exit():
@@ -569,6 +575,7 @@ tilingInfoTf = JTextField(tilingInfoFile)
 tilingDescTf = JTextField(tilingDesc)
 invertXCb = JCheckBox("Invert X offset", invertXOffset)
 invertYCb = JCheckBox("Invert Y offset", invertYOffset)
+slicesCb = JCheckBox("Write slices directly to disk", writeToDisk)
 precombineCb = JCheckBox("Precombine adjacent Z tiles (if any)", preCombineZStacks)
 tmpCb = JCheckBox("Use System temp folder", useSystemTmpFolder)
 saveChCb = JCheckBox("Save stitched channel files", saveStitchedChannels)
@@ -592,6 +599,7 @@ class Listener(ActionListener):
 		global tilingDesc
 		global preCombineZStacks
 		global conversionFactor
+		global writeToDisk
 		print "Starting stitching"
 		frame.setVisible(False)
 		invertXOffset = invertXCb.isSelected()
@@ -605,6 +613,7 @@ class Listener(ActionListener):
 		tilingDesc = tilingDescTf.getText()
 		xTiles = int(xTilesTf.getText())
 		yTiles = int(yTilesTf.getText())
+		writeToDisk = slicesCb.isSelected()
 		preCombineZStacks = precombineCb.isSelected()
 		thresholdR = float(thresholdTf.getText())
 		saveStitchedChannels = saveChCb.isSelected()
@@ -636,6 +645,8 @@ all.add(JLabel(""))
 all.add(invertXCb)
 all.add(JLabel(""))
 all.add(invertYCb)
+all.add(JLabel(""))
+all.add(slicesCb)
 all.add(JLabel(""))
 all.add(precombineCb)
 all.add(JLabel(""))
