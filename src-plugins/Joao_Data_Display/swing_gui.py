@@ -13,6 +13,10 @@ sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data
 from helpers import log, exit
 from ij import IJ, ImagePlus
 from ij.gui import ImageCanvas
+from ij.plugin.filter import Info
+from loci.plugins import LociImporter
+from loci.plugins import BF
+from loci.plugins.in import ImporterOptions
 from structures import Condition, Experiment, Project, View
 
 # A GUI that supports multiple screens
@@ -382,7 +386,28 @@ class MetaDataViewPanel( ViewPanel ):
 
 	def loadData( self, filepath ):
 		"""Override super class method and use LOCI to read meta data in."""
-		return IJ.openImage( filepath )
+		options = ImporterOptions()
+		options.setId( filepath )
+		options.setSplitChannels( False )
+		options.setWindowless( True )
+		options.setVirtual( True )
+		imps = BF.openImagePlus( options )
+		if len(imps) == 0:
+			log("\t\tCould not load image")
+			return
+		return imps[0]
+
+	def getContent( self, data ):
+		""" We get an ImagePlus object here and put its info string
+		into a label."""
+		imgInfo = Info();
+		info = imgInfo.getImageInfo( data, data.getChannelProcessor() )
+		htmlInfo = "<html>" + info.replace( "\n", "<br>" ) + "</html>"
+		label = JLabel( htmlInfo )
+		return label
+
+	def getTabText( self, counter ):
+		return "File #" + str(counter)
 
 class FigureViewPanel( ViewPanel ):
 	"""A panel to view Matlab figure files"""
