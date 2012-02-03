@@ -199,9 +199,9 @@ class DataGUI:
 			elif v.name == View.figureName:
 				dataPanel.add( FigureViewPanel(v) )
 			elif v.name == View.metadataName:
-				dataPanel.add( SpreadsheetViewPanel(v) )
-			elif v.name == View.tableName:
 				dataPanel.add( MetaDataViewPanel(v) )
+			elif v.name == View.tableName:
+				dataPanel.add( SpreadsheetViewPanel(v) )
 			else:
 				log( "Don't know view: " + v.name )
 		# Add all to the frame
