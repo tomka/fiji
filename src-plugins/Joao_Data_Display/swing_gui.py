@@ -244,7 +244,7 @@ class ViewPanel( JPanel ):
 			# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
 			scroll = ScrollPane()
 			scroll.add( component )
-			tabbedPane.addTab( self.getTabText( counter ), None, scroll, p )
+			tabbedPane.addTab( self.getTabText( counter + 1 ), None, scroll, p )
 		self.add( tabbedPane, BorderLayout.CENTER )
 
 	def loadData( self, filepath ):
