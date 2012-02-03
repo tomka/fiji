@@ -123,17 +123,17 @@ def loadYAMLProject( path ):
 			# Make sure we got files OR folders
 			if nFiles > 0 and nFolders > 0:
 				log("The experiment date folder \"" + path + "\" contains both, files (" + str(nFiles) + ") and folders (" + str(nFolders) + "). Please have only files OR (experiment-)folders in there.")
-				return None
-			if nFiles > 0:
-				# Add experiment based on a folder with files only
-				experiments.append( Experiment.baseOnPath( name, exp_conditions, path ) )
-			elif nFolders > 0:
+				#return None
+			if nFolders > 0:
 				# Add experiments based on the sub-folders. Use the sub-folder name
 				# as experiment names.
 				for p in expFolders:
 					fullpath = os.path.join( path, p )
 					log("  Using subfolder: " + fullpath)
 					experiments.append( Experiment.baseOnPath( p, exp_conditions, fullpath ) )
+			elif nFiles > 0:
+				# Add experiment based on a folder with files only
+				experiments.append( Experiment.baseOnPath( name, exp_conditions, path ) )
 			else:
 				log("The experiment date folder \"" + path + "\" contains no files and no folders. Please correct that.")
 				return None
