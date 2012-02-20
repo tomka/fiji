@@ -7,7 +7,8 @@ import sys
 import time
 from threading import Thread
 from java.lang.System import getProperty
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable
+from javax.swing.table import DefaultTableModel
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
 sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
 from helpers import log, exit
@@ -18,6 +19,11 @@ from loci.plugins import LociImporter
 from loci.plugins import BF
 from loci.plugins.in import ImporterOptions
 from structures import Condition, Experiment, Project, View
+from org.apache.poi.hssf.usermodel import HSSFCell, HSSFRichTextString, HSSFRow, HSSFSheet, HSSFWorkbook
+from org.apache.poi.hssf import OldExcelFormatException
+from org.apache.poi.poifs.filesystem import POIFSFileSystem
+from jxl import Workbook as JXLWorkbook
+from java.io import File, FileInputStream, IOException
 
 # A GUI that supports multiple screens
 class SelectionGUI:
@@ -416,7 +422,109 @@ class FigureViewPanel( ViewPanel ):
 		pass
 
 class SpreadsheetViewPanel( ViewPanel ):
-	"""A panel to view spreadsheet data files"""
+	"""A panel to view spreadsheet data files. The first row is taken
+	as table headings.
+	"""
 	def __init__( self, view ):
 		super( SpreadsheetViewPanel, self ).__init__( view, "Spreadsheet data" )
+		self.usingPoi = True
 		pass
+
+	def loadData( self, filepath ):
+		"""Override super class method and use xlrd to read excel data in."""
+		if not filepath.endswith( '.xls' ):
+			return None
+		workbook = None
+		try:
+			inputStream = FileInputStream( filepath )
+			fileSystem = POIFSFileSystem( inputStream )
+			workbook = HSSFWorkbook( fileSystem )
+		except OldExcelFormatException, e:
+			# Problems could happen with old (< Excel 97)
+			log( "A very old Excel file version has been detected, switching to JXL" )
+			workbook = JXLWorkbook.getWorkbook( File( filepath ) )
+			self.usingPoi = False
+		except:
+			log( "An error occured while trying to access the file: " + filepath )
+			workbook = None
+		return workbook
+
+	def getColumnHeader( self, nColumn ):
+		""" Expects the columns to start with 1
+		"""
+		colHeading = ""
+		colCounter = nColumn
+		while colCounter > 0:
+			colCounter = colCounter - 1
+			colHeading = chr( ( colCounter % 26 ) + ord('A') ) + colHeading
+			colCounter = int(colCounter / 26)
+		return colHeading
+
+	def getJXLContent( self, data ):
+		sheet = data.getSheet(0)
+		nRows = sheet.getRows()
+		nColumns = sheet.getColumns()
+		model = DefaultTableModel()
+		# Add rows
+		for i in range(0, nRows-1):
+			 model.addRow( [] )
+		# Get Column name from the spreedsheet and set table's column
+		for i in range(0, nColumns):
+			column = sheet.getColumn( i );
+			if len(column) > 0:
+				if not column[0].getContents() == "":
+					columnName = column[0].getContents()
+					model.addColumn( columnName )
+		# Get cell contents and put them in the table
+		for i in range(1, model.getRowCount()):
+			for j in range(0, model.getColumnCount()):
+				cell = sheet.getCell(j, i)
+				model.setValueAt( cell.getContents(), i-1, j)
+		# close the workbook and free memory
+		data.close()
+		# create the table
+		table = JTable()
+		table.setModel(model)
+		# Make sure the header is displayed
+		panel = JPanel()
+		panel.setLayout(BorderLayout());
+		panel.add(table.getTableHeader(), BorderLayout.NORTH);
+		panel.add(table, BorderLayout.CENTER);
+		return panel
+
+	def getPOIContent( self, data ):
+		sheet = data.getSheetAt( 0 )
+		rows = sheet.rowIterator()
+		while rows.hasNext():
+			row = rows.next()
+			log( "Row No.: " + str( row.getRowNum() ) )
+			cells = row.cellIterator()
+			while cells.hasNext():
+				cell = cells.next()
+				c = cell.getCellNum()
+				log( "Cell No.: " + str( c ) + " Column name: " + self.getColumnHeader(c+1) )
+				cellType = cell.getCellType()
+				if cellType == HSSFCell.CELL_TYPE_NUMERIC:
+					# cell type numeric
+					log( "Numeric value: " + str( cell.getNumericCellValue() ) )
+				elif cellType == HSSFCell.CELL_TYPE_STRING:
+					# cell type string.
+					richTextString = cell.getRichStringCellValue()
+					log( "String value: " + richTextString.getString() )
+				else:
+					# types other than String and Numeric.
+					log( "Type not supported." )
+		return None
+
+
+	def getContent( self, data ):
+		table = None
+		if self.usingPoi:
+			table = self.getPOIContent( data )
+			table = JPanel()
+		else:
+			table = self.getJXLContent( data )
+		return table
+
+	def getTabText( self, counter ):
+		return "Table #" + str(counter)
