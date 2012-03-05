@@ -25,6 +25,10 @@ from org.apache.poi.poifs.filesystem import POIFSFileSystem
 from jxl import Workbook as JXLWorkbook
 from java.io import File, FileInputStream, IOException
 
+#Charts
+from info.monitorenter.gui.chart import Chart2D, ITrace2D
+from info.monitorenter.gui.chart.traces import Trace2DSimple
+
 # A GUI that supports multiple screens
 class SelectionGUI:
 	def __init__(self, controler):
@@ -237,6 +241,7 @@ class ViewPanel( JPanel ):
 		self.files = []
 		self.view = view
 		self.title = title
+		self.tabFileMapping = []
 
 		self.setBorder( BorderFactory.createTitledBorder( title ) )
 		tabbedPane = JTabbedPane( stateChanged=self.handleTabChangeHook )
@@ -250,18 +255,26 @@ class ViewPanel( JPanel ):
 			if counter == 0:
 				self.currentFile = data
 			self.files.append( data )
-			component = self.getContent( data )
-			# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
-			scroll = ScrollPane()
-			scroll.add( component )
-			tabbedPane.addTab( self.getTabText( counter + 1 ), None, scroll, p )
+			
+			components = self.getContent( data )
+			if not isinstance( components, list ):
+				components = [ components ]
+				
+			for n, c in enumerate( components ):
+				self.tabFileMapping.append(counter)
+				# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
+				scroll = ScrollPane()
+				scroll.add( c )
+				tabbedPane.addTab( self.getTabText( counter + 1, n ), None, scroll, p )
+
 		self.add( tabbedPane, BorderLayout.CENTER )
 
 	def loadData( self, filepath ):
 		pass
 
 	def handleTabChangeHook( self, event ):
-		self.currentFile = self.files[ event.source.getSelectedIndex() ]
+		fileIndex = self.tabFileMapping[ event.source.getSelectedIndex() ]
+		self.currentFile = self.files[ fileIndex ]
 		self.handleTabChange( event )
 
 	def handleTabChange( self, event ):
@@ -270,7 +283,7 @@ class ViewPanel( JPanel ):
 	def getContent( self, data ):
 		pass
 
-	def getTabText( self, counter ):
+	def getTabText( self, counter, subcomponent=0 ):
 		pass
 
 # A function that repeatedly forwards to the next frame
@@ -315,7 +328,7 @@ class MovieViewPanel( ViewPanel ):
 		ic.setPreferredSize( Dimension( ic.getWidth(), ic.getHeight() ) )
 		return ic
 
-	def getTabText( self, counter ):
+	def getTabText( self, counter, subcomponent=0 ):
 		return "Movie #" + str(counter)
 
 	# Updates the image data and the canvas component
@@ -412,7 +425,7 @@ class MetaDataViewPanel( ViewPanel ):
 		label = JLabel( htmlInfo )
 		return label
 
-	def getTabText( self, counter ):
+	def getTabText( self, counter, subcomponent=0 ):
 		return "File #" + str(counter)
 
 class FigureViewPanel( ViewPanel ):
@@ -428,11 +441,15 @@ class SpreadsheetViewPanel( ViewPanel ):
 	def __init__( self, view ):
 		self.usingPoi = True
 		self.columnFilter = []
+		self.plots = []
 		log( "Spreadsheet view settings: " + str(view.settings) )
 		if view.settings is not None:
 			if "display" in view.settings:
 				for c in view.settings.get("display"):
 					self.columnFilter.append( c )
+			if "plot" in view.settings:
+				for p in view.settings.get("plot"):
+					self.plots.append( p )
 		super( SpreadsheetViewPanel, self ).__init__( view, "Spreadsheet data" )
 
 	def loadData( self, filepath ):
@@ -472,7 +489,11 @@ class SpreadsheetViewPanel( ViewPanel ):
 		# Add rows
 		for i in range(0, nRows-1):
 			 model.addRow( [] )
+		# Create a small translation table
+		
 		# Get Column name from the spreedsheet and set table's column
+		addedCols = 0
+		availCols = {}
 		for i in range(0, sheet.getColumns() ):
 			column = sheet.getColumn( i );
 			if len(column) > 0:
@@ -482,11 +503,46 @@ class SpreadsheetViewPanel( ViewPanel ):
 				if not column[0].getContents() == "":
 					columnName = column[0].getContents()
 					model.addColumn( columnName )
+					availCols[addedCols] = commonName
+					addedCols = addedCols + 1
 		# Get cell contents and put them in the table
-		for i in range(1, model.getRowCount()):
-			for j in range(0, model.getColumnCount()):
-				cell = sheet.getCell(j, i)
-				model.setValueAt( cell.getContents(), i-1, j)
+		plotData = {}
+		for i in range(0, model.getColumnCount()):
+			# check if this column is part of a plot
+			plotCoords = None
+			for p in self.plots:
+				for c in p:
+					if availCols[i] == c:
+						# Create a new structure for the data, if not present yet
+						if p not in plotData:
+							plotData[p] = []
+						# get all the values in this column
+						plotCoords = []
+						plotData[p].append( plotCoords )
+			if plotCoords is not None:
+				# update the model
+				for j in range(1, model.getRowCount()):
+					cell = sheet.getCell(i, j)
+					model.setValueAt( cell.getContents(), j-1, i)
+					plotCoords.append( cell.getValue() )
+			else:
+				# update the model
+				for j in range(1, model.getRowCount()):
+					cell = sheet.getCell(i, j)
+					model.setValueAt( cell.getContents(), j-1, i)
+		# Create plots
+		charts = []
+		for k in plotData:
+			chart = Chart2D()
+			trace = Trace2DSimple()
+			chart.addTrace(trace)
+			chartData = plotData[k]
+			for i in range(0, len(chartData[0])):
+				x = float(chartData[0][i])
+				y = float(chartData[1][i])
+				trace.addPoint(x, y)
+			charts.append( chart )
+				
 		# close the workbook and free memory
 		data.close()
 		# create the table
@@ -497,7 +553,10 @@ class SpreadsheetViewPanel( ViewPanel ):
 		panel.setLayout(BorderLayout());
 		panel.add(table.getTableHeader(), BorderLayout.NORTH);
 		panel.add(table, BorderLayout.CENTER);
-		return panel
+		# all the components together
+		components = [ panel ]
+		components.extend( charts )
+		return components
 
 	def getPOIContent( self, data ):
 		sheet = data.getSheetAt( 0 )
@@ -536,5 +595,8 @@ class SpreadsheetViewPanel( ViewPanel ):
 			table = self.getJXLContent( data )
 		return table
 
-	def getTabText( self, counter ):
-		return "Table #" + str(counter)
+	def getTabText( self, counter, subcomponent=0 ):
+		if subcomponent == 0:
+			return "Table #" + str(counter)
+		else:
+			return "Table #" + str(counter) + " Plot #" + str(subcomponent)
