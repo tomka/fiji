@@ -43,9 +43,10 @@ class View:
 	metadataName = "metadata"
 	tableName = "spreadsheet"
 
-	def __init__(self, name, paths):
+	def __init__(self, name, paths, settings=None):
 		self.name = name
 		self.paths = paths
+		self.settings = settings
 
 # An experiment which was made under certain conditions.
 class Experiment:
@@ -65,7 +66,7 @@ class Experiment:
 	# Creates a new experiment based on looking at all the files
 	# in one folder. Expects a list of conditions.
 	@classmethod
-	def baseOnPath(self, name, conditions, path):
+	def baseOnPath(self, name, conditions, path, settings=None):
 		# Check if the path is actually valid
 		if not os.path.exists(path):
 			log( "Could not find path: " + path)
@@ -97,16 +98,24 @@ class Experiment:
 		# Check what we've got and create views
 		views = []
 		if len(movies) > 0:
-			views.append( View( View.movieName, movies ) )
+			views.append( Experiment.createView( View.movieName, movies, settings ) )
 		if len(figures) > 0:
-			views.append( View( View.figureName, figures ) )
+			views.append( Experiment.createView( View.figureName, figures, settings ) )
 		if len(metafiles) > 0:
-			views.append( View( View.metadataName, metafiles ) )
+			views.append( Experiment.createView( View.metadataName, metafiles, settings ) )
 		if len(tables) > 0:
-			views.append( View( View.tableName, tables ) )
+			views.append( Experiment.createView( View.tableName, tables, settings ) )
 		log("  scanned directory " + path + " and created " + str(len(views)) + " views")
 		# create new experiment
 		return Experiment(name, conditions, views)
+
+	@classmethod
+	def createView(self, viewName, files, settings):
+		viewSettings = None
+		if settings is not None:
+			if viewName in settings:
+				viewSettings = settings.get(viewName)
+		return View( viewName, files, viewSettings)
 
 	def matches(self, testConditions):
 		for tc in testConditions:

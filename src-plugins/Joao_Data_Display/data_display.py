@@ -83,6 +83,10 @@ def loadYAMLProject( path ):
 		log( "Creating filter conditions from available experiments" )
 		log( "--> Not yey supported!" )
 		return None
+	viewSettings = {}
+	if project.containsKey( "views" ):
+		viewSettings = project.get( "views" )
+		log( "Using predefined view properties: " + str( viewSettings ) )
 	# Setup experiments of project
 	experiments = []
 	log( "Found " + str( len( experiments_data ) ) + " experiment(s)" )
@@ -103,7 +107,8 @@ def loadYAMLProject( path ):
 				paths = []
 				for p in views_data.get( v ):
 					paths.append( p )
-				views.append( View( v, paths ) )
+				settings = viewSettings.get(v) if v in viewSettings else None
+				views.append( View( v, paths, settings ) )
 			experiments.append( Experiment( name, exp_conditions, views ) )
 		elif e.containsKey( "directory" ):
 			path = e.get( "directory" )
@@ -130,10 +135,10 @@ def loadYAMLProject( path ):
 				for p in expFolders:
 					fullpath = os.path.join( path, p )
 					log("  Using subfolder: " + fullpath)
-					experiments.append( Experiment.baseOnPath( p, exp_conditions, fullpath ) )
+					experiments.append( Experiment.baseOnPath( p, exp_conditions, fullpath, viewSettings ) )
 			elif nFiles > 0:
 				# Add experiment based on a folder with files only
-				experiments.append( Experiment.baseOnPath( name, exp_conditions, path ) )
+				experiments.append( Experiment.baseOnPath( name, exp_conditions, path, viewSettings ) )
 			else:
 				log("The experiment date folder \"" + path + "\" contains no files and no folders. Please correct that.")
 				return None

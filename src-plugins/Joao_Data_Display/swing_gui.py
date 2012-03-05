@@ -426,9 +426,14 @@ class SpreadsheetViewPanel( ViewPanel ):
 	as table headings.
 	"""
 	def __init__( self, view ):
-		super( SpreadsheetViewPanel, self ).__init__( view, "Spreadsheet data" )
 		self.usingPoi = True
-		pass
+		self.columnFilter = []
+		log( "Spreadsheet view settings: " + str(view.settings) )
+		if view.settings is not None:
+			if "display" in view.settings:
+				for c in view.settings.get("display"):
+					self.columnFilter.append( c )
+		super( SpreadsheetViewPanel, self ).__init__( view, "Spreadsheet data" )
 
 	def loadData( self, filepath ):
 		"""Override super class method and use xlrd to read excel data in."""
@@ -463,15 +468,17 @@ class SpreadsheetViewPanel( ViewPanel ):
 	def getJXLContent( self, data ):
 		sheet = data.getSheet(0)
 		nRows = sheet.getRows()
-		nColumns = sheet.getColumns()
 		model = DefaultTableModel()
 		# Add rows
 		for i in range(0, nRows-1):
 			 model.addRow( [] )
 		# Get Column name from the spreedsheet and set table's column
-		for i in range(0, nColumns):
+		for i in range(0, sheet.getColumns() ):
 			column = sheet.getColumn( i );
 			if len(column) > 0:
+				commonName = self.getColumnHeader(i+1)
+				if self.columnFilter and commonName not in self.columnFilter:
+					continue
 				if not column[0].getContents() == "":
 					columnName = column[0].getContents()
 					model.addColumn( columnName )
@@ -502,7 +509,10 @@ class SpreadsheetViewPanel( ViewPanel ):
 			while cells.hasNext():
 				cell = cells.next()
 				c = cell.getCellNum()
-				log( "Cell No.: " + str( c ) + " Column name: " + self.getColumnHeader(c+1) )
+				commonName = self.getColumnHeader(c+1)
+				if self.columnFilter and commonName not in self.columnFilter:
+					continue
+				log( "Cell No.: " + str( c ) + " Column name: " + commonName )
 				cellType = cell.getCellType()
 				if cellType == HSSFCell.CELL_TYPE_NUMERIC:
 					# cell type numeric
