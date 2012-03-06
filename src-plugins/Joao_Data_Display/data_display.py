@@ -83,6 +83,10 @@ def loadYAMLProject( path ):
 		log( "Creating filter conditions from available experiments" )
 		log( "--> Not yey supported!" )
 		return None
+	# Set up base directory
+	basedirectory = ""
+	if project.containsKey( "basedirectory" ):
+		basedirectory = project.get( "basedirectory" )
 	viewSettings = {}
 	if project.containsKey( "views" ):
 		viewSettings = project.get( "views" )
@@ -108,7 +112,7 @@ def loadYAMLProject( path ):
 					current_view = views_data.get( v )
 					paths = []
 					for p in current_view.get( "files" ):
-						paths.append( p )
+						paths.append( os.path.join( basedirectory, p ) )
 					# v are the local settings.
 					settings = None
 					if v in viewSettings:
@@ -123,7 +127,7 @@ def loadYAMLProject( path ):
 					continue
 			experiments.append( Experiment( name, exp_conditions, views ) )
 		elif e.containsKey( "directory" ):
-			path = e.get( "directory" )
+			path = os.path.join( basedirectory, e.get( "directory" ) )
 			# Check if the path contains subfolders. If so, try to create
 			# seperate experiments out of it and use the folder names as
 			# experiment names.
