@@ -104,11 +104,23 @@ def loadYAMLProject( path ):
 			views = []
 			views_data = e.get( "views" )
 			for v in views_data:
-				paths = []
-				for p in views_data.get( v ):
-					paths.append( p )
-				settings = viewSettings.get(v) if v in viewSettings else None
-				views.append( View( v, paths, settings ) )
+				try:
+					current_view = views_data.get( v )
+					paths = []
+					for p in current_view.get( "files" ):
+						paths.append( p )
+					# v are the local settings.
+					settings = None
+					if v in viewSettings:
+						settings = viewSettings.get(v).clone()
+						for s in current_view:
+							settings[s] = current_view.get(s)
+					else:
+						settings = current_view
+					views.append( View( v, paths, settings ) )
+				except AttributeError, e:
+					log( "No files definition found for view \"" + str(v) + "\" of experiment \"" + name + "\": " + str(e) )
+					continue
 			experiments.append( Experiment( name, exp_conditions, views ) )
 		elif e.containsKey( "directory" ):
 			path = e.get( "directory" )
