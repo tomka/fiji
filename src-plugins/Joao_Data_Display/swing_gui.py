@@ -29,6 +29,13 @@ from java.io import File, FileInputStream, IOException
 from info.monitorenter.gui.chart import Chart2D, ITrace2D
 from info.monitorenter.gui.chart.traces import Trace2DSimple
 
+#PDF
+from java.lang import System
+from java.util import ResourceBundle, Properties
+from org.icepdf.ri.util import PropertiesManager
+from org.icepdf.ri.common import SwingController, SwingViewBuilder
+from org.icepdf.core.views import DocumentViewController
+
 # A GUI that supports multiple screens
 class SelectionGUI:
 	def __init__(self, controler):
@@ -235,7 +242,7 @@ class DataGUI:
 
 class ViewPanel( JPanel ):
 	"""A common panel for displaying views"""
-	def __init__( self, view, title ):
+	def __init__( self, view, title, scrollable=True ):
 		super( ViewPanel, self ).__init__( BorderLayout() )
 		self.currentFile = None
 		self.files = []
@@ -245,7 +252,8 @@ class ViewPanel( JPanel ):
 
 		self.setBorder( BorderFactory.createTitledBorder( title ) )
 		tabbedPane = JTabbedPane( stateChanged=self.handleTabChangeHook )
-		for ( counter, p ) in enumerate( view.paths ):
+		counter = 0
+		for p in view.paths:
 			# Load it into an image
 			data = self.loadData( p )
 			if data is None:
@@ -263,14 +271,18 @@ class ViewPanel( JPanel ):
 			for n, c in enumerate( components ):
 				self.tabFileMapping.append(counter)
 				# Unfortunately, the AWT.ScrollPane has to be used with AWT.Canvas
-				scroll = ScrollPane()
-				scroll.add( c )
-				tabbedPane.addTab( self.getTabText( counter + 1, n ), None, scroll, p )
+				if scrollable:
+					scroll = ScrollPane()
+					scroll.add( c )
+					c = scroll
+				tabbedPane.addTab( self.getTabText( counter + 1, n ), None, c, p )
+			# increase counter
+			counter = counter + 1
 
 		self.add( tabbedPane, BorderLayout.CENTER )
 
 	def loadData( self, filepath ):
-		pass
+		return None
 
 	def handleTabChangeHook( self, event ):
 		fileIndex = self.tabFileMapping[ event.source.getSelectedIndex() ]
@@ -431,8 +443,42 @@ class MetaDataViewPanel( ViewPanel ):
 class FigureViewPanel( ViewPanel ):
 	"""A panel to view Matlab figure files"""
 	def __init__( self, view ):
-		super( FigureViewPanel, self ).__init__( view, "Matlab figures" )
+		super( FigureViewPanel, self ).__init__( view, "Matlab figures", False )
 		pass
+
+	def loadData( self, filepath ):
+		# For now, deal only with .pdf files
+		if not filepath.endswith( ".pdf" ):
+			return None
+		# Build a controller
+		controller = SwingController()
+		# Create default settings
+		props = Properties()
+		props.setProperty( PropertiesManager.PROPERTY_SHOW_UTILITY_SAVE, "false" )
+		props.setProperty( PropertiesManager.PROPERTY_SHOW_UTILITY_PRINT, "false" )
+		props.setProperty( PropertiesManager.PROPERTY_SHOW_UTILITY_SEARCH, "false" )
+		props.setProperty( PropertiesManager.PROPERTY_SHOW_UTILITY_UPANE, "false" )
+		props.setProperty(PropertiesManager.PROPERTY_SHOW_TOOLBAR_ANNOTATION, "false" )
+		props.setProperty(PropertiesManager.PROPERTY_SHOW_STATUSBAR, "false" )
+		props.setProperty(PropertiesManager.PROPERTY_DEFAULT_PAGEFIT, str(DocumentViewController.PAGE_FIT_WINDOW_HEIGHT) )
+		props.setProperty("application.showLocalStorageDialogs", "false" )
+		res = ResourceBundle.getBundle( PropertiesManager.DEFAULT_MESSAGE_BUNDLE )
+		pm = PropertiesManager( System.getProperties(), props, res )
+		# Build a SwingViewFactory configured with the controller
+		factory = SwingViewBuilder(controller, pm)
+		# Use the factory to build a JPanel that is pre-configured
+		# with a complete, active Viewer UI.
+		viewerComponentPanel = factory.buildViewerPanel()
+		# Open a PDF document to view
+		controller.openDocument( filepath )
+
+		return viewerComponentPanel
+
+	def getContent( self, data ):
+		return data
+
+	def getTabText( self, counter, subcomponent=0 ):
+		return "Figure #" + str(counter)
 
 class SpreadsheetViewPanel( ViewPanel ):
 	"""A panel to view spreadsheet data files. The first row is taken

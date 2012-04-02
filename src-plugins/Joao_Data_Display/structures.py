@@ -87,7 +87,7 @@ class Experiment:
 			if filename.endswith(".avi"):
 				movies.append( filePath )
 			# look for matlab figures (*.fig)
-			elif filename.endswith(".fig"):
+			elif filename.endswith(".fig") or filename.endswith(".pdf"):
 				figures.append( filePath )
 			# look for raw data files (*.lsm)
 			elif filename.endswith(".lsm"):
