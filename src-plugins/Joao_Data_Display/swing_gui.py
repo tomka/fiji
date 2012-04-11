@@ -7,7 +7,7 @@ import sys
 import time
 from threading import Thread
 from java.lang.System import getProperty
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable, JComboBox, JSlider
 from javax.swing.table import DefaultTableModel
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
 sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
@@ -24,6 +24,10 @@ from org.apache.poi.hssf import OldExcelFormatException
 from org.apache.poi.poifs.filesystem import POIFSFileSystem
 from jxl import Workbook as JXLWorkbook
 from java.io import File, FileInputStream, IOException
+
+# Movies
+from loci.formats import FormatException
+from java.awt.event import ActionListener
 
 #Charts
 from info.monitorenter.gui.chart import Chart2D, ITrace2D
@@ -298,17 +302,29 @@ class ViewPanel( JPanel ):
 	def getTabText( self, counter, subcomponent=0 ):
 		pass
 
+moviePanelFPS = 10.0
+
 # A function that repeatedly forwards to the next frame
 # of the current movie
 def animate( gui ):
 	while gui.moviePlaying:
 		gui.showNextMovieFrame()
-		time.sleep( 1.0 / 7.0 )
+		time.sleep( 1.0 / moviePanelFPS )
+
+class comboBoxListener(ActionListener):
+	def __init__(self, availableFPS):
+		self.availableFPS = availableFPS
+
+	def actionPerformed(self, event):
+		global moviePanelFPS
+		idx = event.source.getSelectedIndex()
+		moviePanelFPS = self.availableFPS[ idx ]
 
 class MovieViewPanel( ViewPanel ):
 	"""A panel to view movie files"""
 	def __init__( self, view ):
 		# Set up members
+		self.availableFPS = [2,5,10,20,30,50]
 		self.canvases = []
 		self.frame = None
 		self.sliceLabel = None
@@ -317,22 +333,42 @@ class MovieViewPanel( ViewPanel ):
 		self.currentCanvas = None
 		self.moviePlaying = False
 		self.animationThread = None
+		self.sliceSlider = JSlider( stateChanged=self.sliderHandler )
 		# Init base class
 		super( MovieViewPanel, self ).__init__( view, "Movies" )
 		# Add control components
 		controlPanel = JPanel()
+		controlPanel.add( JLabel("FPS:") )
+		fpsComboBox = JComboBox( self.availableFPS )
+		fpsComboBox.setSelectedIndex(2)
+		fpsComboBox.addActionListener( comboBoxListener(self.availableFPS) )
+		controlPanel.add( fpsComboBox )
 		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
 		self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
 		controlPanel.add( self.stopButton )
 		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
 		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
-		self.sliceLabel = JLabel()
 		self.updateFrameInfo()
-		controlPanel.add( self.sliceLabel )
+		controlPanel.add( self.sliceSlider )
+
 		self.add( controlPanel, BorderLayout.SOUTH )
 
 	def loadData( self, filepath ):
-		return IJ.openImage( filepath )
+		try:
+			#return IJ.openImage( filepath )
+			options = ImporterOptions()
+			options.setId( filepath )
+			options.setSplitChannels( False )
+			options.setWindowless( True )
+			options.setVirtual( False )
+			imps = BF.openImagePlus( options )
+			if len(imps) == 0:
+				log("\t\tCould not load image")
+				return
+			return imps[0]
+		except FormatException, e:
+			log( "Error while loading file: " + e.getMessage() )
+			return None
 
 	def getContent( self, data ):
 		ic = ImageCanvas( data )
@@ -356,11 +392,12 @@ class MovieViewPanel( ViewPanel ):
 		self.updateFrameInfo()
 
 	def updateFrameInfo(self):
-		if self.sliceLabel is None:
-			return
 		mov = self.currentFile
-		info = "Frame " + str( mov.getCurrentSlice() ) + "/" + str( mov.getNSlices() )
-		self.sliceLabel.setText( info )
+		info = "Frame " + str( mov.getT() ) + "/" + str( mov.getNFrames() )
+		self.sliceSlider.setMinimum(1)
+		self.sliceSlider.setMaximum( mov.getNFrames() )
+		self.sliceSlider.setValue( mov.getT() )
+		self.sliceSlider.setToolTipText( info )
 
 	# Handler for the "next" button
 	def nextFrameButtonHandler(self, event):
@@ -368,10 +405,7 @@ class MovieViewPanel( ViewPanel ):
 
 	# Forwars one frame of the current movie
 	def showNextMovieFrame( self ):
-		imp = self.currentFile
-		imp.setSlice( imp.getCurrentSlice() + 1 )
-		self.updateImage()
-		self.updateFrameInfo()
+		self.setCurrentFrame( self.currentFile.getT() + 1 )
 
 	# Handler for the "prev" button
 	def prevFrameButtonHandler(self, event):
@@ -379,10 +413,7 @@ class MovieViewPanel( ViewPanel ):
 
 	# Rewinds one frame of the current movie
 	def showPreviousMovieFrame(self):
-		imp = self.currentFile
-		imp.setSlice( imp.getCurrentSlice() - 1 )
-		self.updateImage()
-		self.updateFrameInfo()
+		self.setCurrentFrame( self.currentFile.getT() - 1 )
 
 	# Plays the current movie with the help pf a new thread
 	def playMovie(self, event):
@@ -395,11 +426,13 @@ class MovieViewPanel( ViewPanel ):
 		self.animationThread = Thread( target=lambda: animate( self ) )
 		self.animationThread.start()
 		self.stopButton.setText( "Pause" )
+		self.sliceSlider.setEnabled( False )
 
 	# Stops the current movie playback
 	def stopMovie(self, event):
+		self.sliceSlider.setEnabled( True )
 		if not self.moviePlaying:
-			self.currentFile.setSlice( 1 )
+			self.currentFile.setT( 1 )
 			self.stopButton.setEnabled( False )
 			self.stopButton.setText( "Pause" )
 			self.updateImage()
@@ -408,6 +441,21 @@ class MovieViewPanel( ViewPanel ):
 		self.stopButton.setText( "Stop" )
 		self.moviePlaying = False
 		self.animationThread.join()
+
+	def setCurrentFrame(self, frame):
+		self.currentFile.setT( frame )
+		self.updateImage()
+		self.updateFrameInfo()
+
+	# Handler for the slider
+	def sliderHandler(self, event):
+		""" Only react to the signal if we are currently
+		not playing a movie.
+		"""
+		if self.moviePlaying:
+			return
+		val = self.sliceSlider.getValue()
+		self.setCurrentFrame( val )
 
 class MetaDataViewPanel( ViewPanel ):
 	"""A panel to view meta data files"""
