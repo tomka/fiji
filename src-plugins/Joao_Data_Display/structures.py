@@ -1,7 +1,7 @@
 import os
 import sys
 from java.lang.System import getProperty
-sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
+sys.path.append( os.path.join( getProperty("fiji.dir") + "/plugins/Data_Viewer" ) )
 from helpers import log, exit
 
 # A named experiment condition with a list of options. This could

@@ -4,15 +4,18 @@ Systems biology data display based on Fiji
 Tom Kazimiers, December 2011
 """
 
+from java.lang.System import getProperty
 import os
 import sys
+from helpers import log, exit
+
+fijidir = getProperty("fiji.dir")
+sys.path.append( os.path.join( fijidir, "/plugins/Data_Viewer" ) )
+
 from org.yaml.snakeyaml import Yaml
 from java.io import File, FileInputStream
 from java.util import List, Map
-from java.lang.System import getProperty
-sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
-from swing_gui import SelectionGUI, DataGUI
-from helpers import log, exit
+from swinggui import SelectionGUI, DataGUI
 from structures import Condition, Experiment, Project, View
 
 # Creates projects based on a name

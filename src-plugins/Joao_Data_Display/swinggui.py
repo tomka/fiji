@@ -7,11 +7,14 @@ import sys
 import time
 from threading import Thread
 from java.lang.System import getProperty
+
+fijidir = getProperty("fiji.dir")
+sys.path.append( os.path.join( fijidir, "/plugins/Data_Viewer" ) )
+from helpers import log, exit
+
 from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable, JComboBox, JSlider
 from javax.swing.table import DefaultTableModel
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
-sys.path.append( os.path.join( getProperty("fiji.dir") + "/src-plugins/Joao_Data_Display" ) )
-from helpers import log, exit
 from ij import IJ, ImagePlus
 from ij.gui import ImageCanvas
 from ij.plugin.filter import Info
@@ -19,6 +22,8 @@ from loci.plugins import LociImporter
 from loci.plugins import BF
 from loci.plugins.in import ImporterOptions
 from structures import Condition, Experiment, Project, View
+
+# Spreadsheet
 from org.apache.poi.hssf.usermodel import HSSFCell, HSSFRichTextString, HSSFRow, HSSFSheet, HSSFWorkbook
 from org.apache.poi.hssf import OldExcelFormatException
 from org.apache.poi.poifs.filesystem import POIFSFileSystem
