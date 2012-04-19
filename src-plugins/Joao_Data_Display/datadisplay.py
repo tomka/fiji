@@ -189,8 +189,14 @@ class Controler:
 
 # Main entry
 def main():
+	od = OpenDialog("Choose experiment file", None)
+	inputfile = od.getFileName()
+	if inputfile == None:
+		return
 	log("Loading project")
-	project = loadYAMLProject( "/home/tom/tmp/joao-experiments.yml" )
+	#project = loadYAMLProject( "/home/tom/tmp/joao-experiments.yml" )
+	inputpath = os.path.join( od.getDirectory(), inputfile )
+	project = loadYAMLProject( inputpath )
 	#project = loadSampleProject( "Joao" )
 	if project is None:
 		exit("Loading failed, exiting")
