@@ -236,7 +236,8 @@ PLUGIN_TARGETS=plugins/Jython_Interpreter.jar \
 	jars/fiji-compat.jar \
 	plugins/Fiji_Package_Maker.jar \
 	plugins/BalloonSegmentation_.jar \
-	plugins/CorrectBleach_.jar
+	plugins/CorrectBleach_.jar \
+	plugins/Color_Tool.jar
 
 LEGACYLAUNCHER=fiji
 
@@ -372,6 +373,9 @@ CLASSPATH(plugins/Algorithm_Launcher.jar)=jars/ij.jar:jars/imglib.jar:jars/imgli
 plugins/Algorithm_Launcher.jar <- \
 	src-plugins/Algorithm_Launcher/**/*.java \
 	src-plugins/Algorithm_Launcher/**/*.config
+
+CLASSPATH(plugins/Color_Tool.jar)=jars/ij.jar:jars/imglib2.jar:jars/imglib2-ij.jar:jars/fiji-lib.jar:jars/imglib2-io.jar:plugins/loci_tools.jar
+plugins/Color_Tool.jar <- src-plugins/Color_Tool/**/*.java
 
 CLASSPATH(plugins/Directionality_.jar)=jars/ij.jar:jars/jfreechart.jar:jars/jcommon.jar
 CLASSPATH(plugins/LSM_Toolbox.jar)=jars/ij.jar:plugins/LSM_Reader.jar
