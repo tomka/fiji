@@ -163,6 +163,8 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 		// further processing depends on the mode
 		if (mode == Mode.Interior)
 			processCellCenters( table, fillcolor );
+
+        IJ.log( "All images have been processed." );
 	}
 
 	HashMap< Integer, Vector< CellColorInfo > > getCellColoringPoints( Vector<String[]> data ) {
