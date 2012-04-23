@@ -233,11 +233,20 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 						IJ.log( "Requested position is out of bounds." );
 						return;
 				}
-				ra.setPosition( pos );
-				// expect to be in a cell -- flood fill!
-				FloatType old = ra.get().copy();
-				
-				floodLoop( ra, width, height, old, fill );
+
+				// iterate over every channel
+				for (int d=0; d<3; d++) {
+					// set channel
+					pos[2] = d;
+					ra.setPosition( pos );
+					// expect to be in a cell -- flood fill!
+					FloatType old = ra.get().copy();
+					// check if we need to fill at all
+					if ( old.compareTo( fill[d] ) != 0 ) {
+						// flood fill exery channel with the approptiate color
+						floodLoop( ra, width, height, old, fill[d] );
+					}
+				}
 				info.modified = true;
 			}
 
@@ -250,27 +259,27 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 
 	Img< ARGBType > convertToARGB( Img< FloatType > image ) {
 		final Img< ARGBType > result = new ArrayImgFactory< ARGBType >()
-	    			.create( new long[] {image.dimension(0), image.dimension(1)},
-	    				new ARGBType() );
-	    	Cursor< ARGBType > output = result.cursor();
-	    	RandomAccess< FloatType > input = image.randomAccess();
+				.create( new long[] {image.dimension(0), image.dimension(1)},
+					new ARGBType() );
+		Cursor< ARGBType > output = result.cursor();
+		RandomAccess< FloatType > input = image.randomAccess();
 
-	    	final ARGBType tmp = new ARGBType();
+		final ARGBType tmp = new ARGBType();
 
-	    	while ( output.hasNext() ) {
-	    		output.next();
-	    		input.setPosition(output.getIntPosition(0), 0);
-	    		input.setPosition(output.getIntPosition(1), 1);
-	    		input.setPosition(0, 2);
-	    		float r = input.get().getRealFloat();
-	    		input.setPosition(1, 2);
-	    		float g = input.get().getRealFloat();
-	    		input.setPosition(2, 2);
-	    		float b = input.get().getRealFloat();
-	    		output.get().set( output.get().rgba( r, g, b, 1.0f ) );
-	    	}
+		while ( output.hasNext() ) {
+			output.next();
+			input.setPosition(output.getIntPosition(0), 0);
+			input.setPosition(output.getIntPosition(1), 1);
+			input.setPosition(0, 2);
+			float r = input.get().getRealFloat();
+			input.setPosition(1, 2);
+			float g = input.get().getRealFloat();
+			input.setPosition(2, 2);
+			float b = input.get().getRealFloat();
+			output.get().set( output.get().rgba( r, g, b, 1.0f ) );
+		}
 
-	    	return result;
+		return result;
 	}
 
 	String getImagePath( int slice ) {
@@ -309,11 +318,11 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 	}
 
 	/**
-	 * Recursively fills surrounding pixels of the old color.
-	 * Based on code from:
+	 * Recursively fills surrounding pixels of the old color. It operates
+	 * only in 2D. Based on code from:
 	 * http://www.codecodex.com/wiki/Implementing_the_flood_fill_algorithm
 	 */
-	private static <S extends RealType< S > > void floodLoop( RandomAccess<S> ra, long width, long height, S old, S[] fill ) {
+	private static <S extends RealType< S > > void floodLoop( RandomAccess<S> ra, long width, long height, S old, S fill ) {
 		// start position is the current position of the RandomAccess
 		long x = ra.getLongPosition( 0 );
 		long y = ra.getLongPosition( 1 );
@@ -321,47 +330,43 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 		long fillL = x;
 		ra.setPosition( x, 0);
 		do {
-			// fill all three channels
-			ra.get().set( fill[0] );
-			ra.setPosition( 1, 2);
-			ra.get().set( fill[1] );
-			ra.setPosition( 2, 2);
-			ra.get().set( fill[2] );
-			ra.setPosition( 0, 2);
+			// fill the current channel
+			ra.get().set( fill );
+			// move to the left
 			fillL--;
-			ra.setPosition( fillL, 0);
-		} while ( fillL >= 0 && ra.get().compareTo( old ) == 0 );
+			if (fillL < 0)
+				break;
+			ra.setPosition( fillL, 0 );
+		} while ( ra.get().compareTo( old ) == 0 );
 		fillL++;
 
 		// find the right right side, filling along the way
 		long fillR = x;
 		ra.setPosition( x, 0);
 		do {
-			// fill all three channels
-			ra.get().set( fill[0] );
-			ra.setPosition( 1, 2);
-			ra.get().set( fill[1] );
-			ra.setPosition( 2, 2);
-			ra.get().set( fill[2] );
-			ra.setPosition( 0, 2);
+			// fill the current channel
+			ra.get().set( fill );
+			// move to the right
 			fillR++;
+			if (fillR >= width)
+				break;
 			ra.setPosition( fillR, 0);
-		} while (fillR < width - 1 && ra.get().compareTo( old ) == 0 );
+		} while ( ra.get().compareTo( old ) == 0 );
 		fillR--;
 
 		// checks if applicable up or down
 		for (long i = fillL; i <= fillR; i++) {
-			if (y > 0 ) {
+			if ( y > 0 ) {
 				ra.setPosition( i, 0);
 				ra.setPosition( y - 1, 1);
 				if ( ra.get().compareTo( old ) == 0 )
-					floodLoop( ra, width, height, old, fill);
+					floodLoop( ra, width, height, old, fill );
 			}
-			if (y < height - 1 ) {
+			if ( y < height - 1 ) {
 				ra.setPosition( i, 0);
 				ra.setPosition( y + 1, 1);
 				if ( ra.get().compareTo( old ) == 0 )
-					floodLoop( ra, width, height, old, fill);
+					floodLoop( ra, width, height, old, fill );
 			}
 		}
 	}
