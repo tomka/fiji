@@ -106,9 +106,14 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 		}
 
 		// set up some more path information
-		pathPattern = rawPath.substring(
-			rawPath.indexOf(patternStart) + 1,
-			rawPath.lastIndexOf(patternEnd));
+		try {
+			pathPattern = rawPath.substring(
+				rawPath.indexOf(patternStart) + 1,
+				rawPath.lastIndexOf(patternEnd));
+		} catch (java.lang.StringIndexOutOfBoundsException e ) {
+			IJ.log( "Please specify source file information including a pattern {nn}" );
+			return false;
+		}
 		return true;
 	}
 
