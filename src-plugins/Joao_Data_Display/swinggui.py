@@ -77,7 +77,9 @@ class SelectionGUI:
 			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
 			self.exclusiveLists[ optionList ] = c.name
 			optionList.valueChanged = self.selectExclusive
-			panel.add( optionList, BorderLayout.CENTER );
+			# Put the JList into a scrollpane
+			scrollPane = JScrollPane( optionList )
+			panel.add( scrollPane, BorderLayout.CENTER )
 			conditionsPanel.add( panel )
 		# add a JList for each inclusive condition
 		for c in self.project.inclusiveConditions:
@@ -86,14 +88,18 @@ class SelectionGUI:
 			optionList = JList(c.options)
 			optionList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION )
 			self.inclusiveLists[ optionList ] = c.name
+			# Put the JList into a scrollpane
+			scrollPane = JScrollPane( optionList )
 			optionList.valueChanged = self.selectInclusive
-			panel.add( optionList, BorderLayout.CENTER );
+			panel.add( scrollPane, BorderLayout.CENTER )
 			conditionsPanel.add( panel )
 		# Add experiment list box
 		panel = JPanel( BorderLayout() )
 		panel.add( JLabel( "Experiments" ), BorderLayout.NORTH )
 		self.experimentList = JList(self.experimentModel, valueChanged=self.selectExperiment)
-		panel.add( self.experimentList, BorderLayout.CENTER );
+		# Put the JList into a scrollpane
+		scrollPane = JScrollPane( self.experimentList )
+		panel.add( scrollPane, BorderLayout.CENTER )
 		conditionsPanel.add( panel )
 		#frame.getContentPane().add(JScrollPane(all))
 		self.continueButton = JButton("Show data", actionPerformed=self.showData)
