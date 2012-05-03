@@ -332,7 +332,7 @@ class MovieViewPanel( ViewPanel ):
 		self.availableFPS = [2,5,10,20,30,50]
 		self.canvases = []
 		self.frame = None
-		self.sliceLabel = None
+		self.sliceLabel = JLabel()
 		self.stopButton = None
 		self.canvases = []
 		self.currentCanvas = None
@@ -355,6 +355,7 @@ class MovieViewPanel( ViewPanel ):
 		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
 		self.updateFrameInfo()
 		controlPanel.add( self.sliceSlider )
+		controlPanel.add( self.sliceLabel )
 
 		self.add( controlPanel, BorderLayout.SOUTH )
 
@@ -398,11 +399,12 @@ class MovieViewPanel( ViewPanel ):
 
 	def updateFrameInfo(self):
 		mov = self.currentFile
-		info = "Frame " + str( mov.getT() ) + "/" + str( mov.getNFrames() )
+		info = str( mov.getT() ) + "/" + str( mov.getNFrames() )
 		self.sliceSlider.setMinimum(1)
 		self.sliceSlider.setMaximum( mov.getNFrames() )
 		self.sliceSlider.setValue( mov.getT() )
-		self.sliceSlider.setToolTipText( info )
+		self.sliceSlider.setToolTipText( "Frame " + info )
+		self.sliceLabel.setText( info )
 
 	# Handler for the "next" button
 	def nextFrameButtonHandler(self, event):
