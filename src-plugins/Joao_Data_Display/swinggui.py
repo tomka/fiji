@@ -614,7 +614,7 @@ class SpreadsheetViewPanel( ViewPanel ):
 					addedCols = addedCols + 1
 		# Get cell contents and put them in the table
 		plotData = {}
-		for i in range(0, model.getColumnCount()):
+		for i in availCols:
 			# check if this column is part of a plot
 			plotCoords = None
 			for p in self.plots:
