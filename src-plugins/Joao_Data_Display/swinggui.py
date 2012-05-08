@@ -31,6 +31,7 @@ from jxl import Workbook as JXLWorkbook, CellType as JXLCellType
 from java.io import File, FileInputStream, IOException
 
 # Movies
+from java.lang import IllegalArgumentException
 from loci.formats import FormatException
 from java.awt.event import ActionListener
 
@@ -380,6 +381,12 @@ class MovieViewPanel( ViewPanel ):
 			return imps[0]
 		except FormatException, e:
 			log( "Error while loading file: " + e.getMessage() )
+			return None
+		except IllegalArgumentException, e:
+			log( "Error while loading file: " + e.getMessage() )
+			return None
+		except:
+			log( "Error while loading file: " + filepath )
 			return None
 
 	def getContent( self, data ):
