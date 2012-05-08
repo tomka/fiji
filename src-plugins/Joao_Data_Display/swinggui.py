@@ -27,7 +27,7 @@ from structures import Condition, Experiment, Project, View
 from org.apache.poi.hssf.usermodel import HSSFCell, HSSFRichTextString, HSSFRow, HSSFSheet, HSSFWorkbook
 from org.apache.poi.hssf import OldExcelFormatException
 from org.apache.poi.poifs.filesystem import POIFSFileSystem
-from jxl import Workbook as JXLWorkbook
+from jxl import Workbook as JXLWorkbook, CellType as JXLCellType
 from java.io import File, FileInputStream, IOException
 
 # Movies
@@ -630,13 +630,17 @@ class SpreadsheetViewPanel( ViewPanel ):
 				# update the model
 				for j in range(1, model.getRowCount()):
 					cell = sheet.getCell(i, j)
-					model.setValueAt( cell.getContents(), j-1, i)
-					plotCoords.append( cell.getValue() )
+					# Only add cell if not empty
+					if cell.getType() != JXLCellType.EMPTY:
+						model.setValueAt( cell.getContents(), j-1, i)
+						plotCoords.append( cell.getValue() )
 			else:
 				# update the model
 				for j in range(1, model.getRowCount()):
-					cell = sheet.getCell(i, j)
-					model.setValueAt( cell.getContents(), j-1, i)
+					# Only add cell if not empty
+					if cell.getType() != JXLCellType.EMPTY:
+						cell = sheet.getCell(i, j)
+						model.setValueAt( cell.getContents(), j-1, i)
 		# Create plots
 		charts = []
 		for k in plotData:
