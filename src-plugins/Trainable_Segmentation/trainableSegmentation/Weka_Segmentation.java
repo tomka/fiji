@@ -28,6 +28,7 @@ import ij.gui.StackWindow;
 import ij.io.OpenDialog;
 import ij.io.SaveDialog;
 import ij.ImagePlus;
+import ij.Prefs;
 import ij.WindowManager;
 
 import java.util.ArrayList;
@@ -1612,7 +1613,7 @@ public class Weka_Segmentation implements PlugIn
 		else
 			probabilityMaps = false;
 
-		final int numProcessors     = Runtime.getRuntime().availableProcessors();
+		final int numProcessors     = Prefs.getThreads();
 		final int numThreads        = Math.min(imageFiles.length, numProcessors);
 		final int numFurtherThreads = (int)Math.ceil((double)(numProcessors - numThreads)/imageFiles.length) + 1;
 
@@ -1732,6 +1733,9 @@ public class Weka_Segmentation implements PlugIn
 			return;
 		}
 
+		// Set the flag of training complete to true
+		win.trainingComplete = true;
+		
 		// update GUI
 		win.updateAddClassButtons();
 

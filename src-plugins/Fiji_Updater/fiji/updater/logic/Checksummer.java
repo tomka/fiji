@@ -46,7 +46,7 @@ public class Checksummer extends Progressable {
 	public Checksummer(PluginCollection plugins, Progress progress) {
 		this.plugins = plugins;
 		addProgress(progress);
-		setTitle("Checksumming");
+		setTitle("Czech Summer");
 	}
 
 	protected static class StringPair {
@@ -212,8 +212,8 @@ public class Checksummer extends Progressable {
 			return false;
 		platform = platform.substring(0, slash);
 
-		if (platform.equals("linux32"))
-			platform = "linux";
+		if (platform.equals("linux"))
+			platform = "linux32";
 		for (String valid : Util.platforms)
 			if (platform.equals(valid)) {
 				plugin.addPlatform(platform);
@@ -263,8 +263,7 @@ public class Checksummer extends Progressable {
 	protected void initializeQueue() {
 		queue = new ArrayList<StringPair>();
 
-		for (String launcher : Util.isDeveloper ?
-					Util.launchers : Util.getLaunchers())
+		for (String launcher : Util.launchers)
 				queueIfExists(launcher);
 
 		for (int i = 0; i < directories.length; i += 2)
