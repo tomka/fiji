@@ -29,6 +29,7 @@ from org.apache.poi.hssf import OldExcelFormatException
 from org.apache.poi.poifs.filesystem import POIFSFileSystem
 from jxl import Workbook as JXLWorkbook, CellType as JXLCellType
 from java.io import File, FileInputStream, IOException
+from jxl.read.biff import BiffException
 
 # Movies
 from java.lang import IllegalArgumentException
@@ -348,23 +349,27 @@ class MovieViewPanel( ViewPanel ):
 		self.sliceSlider = JSlider( stateChanged=self.sliderHandler )
 		# Init base class
 		super( MovieViewPanel, self ).__init__( view, "Movies" )
-		# Add control components
-		controlPanel = JPanel()
-		controlPanel.add( JLabel("FPS:") )
-		fpsComboBox = JComboBox( self.availableFPS )
-		fpsComboBox.setSelectedIndex(2)
-		fpsComboBox.addActionListener( comboBoxListener(self.availableFPS) )
-		controlPanel.add( fpsComboBox )
-		controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
-		self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
-		controlPanel.add( self.stopButton )
-		controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
-		controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
-		self.updateFrameInfo()
-		controlPanel.add( self.sliceSlider )
-		controlPanel.add( self.sliceLabel )
-
-		self.add( controlPanel, BorderLayout.SOUTH )
+		# Check if we got a file
+		if len( self.files ) == 0:
+			self.add( JLabel( "Could not load file." ), BorderLayout.CENTER )
+		else:
+			# Add control components
+			controlPanel = JPanel()
+			controlPanel.add( JLabel("FPS:") )
+			fpsComboBox = JComboBox( self.availableFPS )
+			fpsComboBox.setSelectedIndex(2)
+			fpsComboBox.addActionListener( comboBoxListener(self.availableFPS) )
+			controlPanel.add( fpsComboBox )
+			controlPanel.add( JButton("Play", actionPerformed=self.playMovie) )
+			self.stopButton = JButton("Pause", actionPerformed=self.stopMovie, enabled=False)
+			controlPanel.add( self.stopButton )
+			controlPanel.add( JButton("Prev", actionPerformed=self.prevFrameButtonHandler) )
+			controlPanel.add( JButton("Next", actionPerformed=self.nextFrameButtonHandler) )
+			self.updateFrameInfo()
+			controlPanel.add( self.sliceSlider )
+			controlPanel.add( self.sliceLabel )
+	
+			self.add( controlPanel, BorderLayout.SOUTH )
 
 	def loadData( self, filepath ):
 		try:
@@ -383,7 +388,10 @@ class MovieViewPanel( ViewPanel ):
 			log( "Error while loading file: " + e.getMessage() )
 			return None
 		except IllegalArgumentException, e:
-			log( "Error while loading file: " + e.getMessage() )
+			msg = e.toString()
+			log( "Error while loading file: " +  msg)
+			System.out.println( "Trace:" )
+			e.printStackTrace()
 			return None
 		except:
 			log( "Error while loading file: " + filepath )
@@ -553,7 +561,7 @@ class SpreadsheetViewPanel( ViewPanel ):
 	as table headings.
 	"""
 	def __init__( self, view ):
-		self.usingPoi = True
+		self.poiUsage = {}
 		self.columnFilter = []
 		self.plots = []
 		log( "Spreadsheet view settings: " + str(view.settings) )
@@ -571,18 +579,33 @@ class SpreadsheetViewPanel( ViewPanel ):
 		if not filepath.endswith( '.xls' ):
 			return None
 		workbook = None
+		useJXL = False
+		
 		try:
 			inputStream = FileInputStream( filepath )
 			fileSystem = POIFSFileSystem( inputStream )
 			workbook = HSSFWorkbook( fileSystem )
+			self.poiUsage[ workbook ] = True
 		except OldExcelFormatException, e:
 			# Problems could happen with old (< Excel 97)
 			log( "A very old Excel file version has been detected, switching to JXL" )
-			workbook = JXLWorkbook.getWorkbook( File( filepath ) )
-			self.usingPoi = False
+			useJXL = True
+		except IOException, e:
+			log( "An IO problem has been detected, trying JXL" )
+			useJXL = True
 		except:
 			log( "An error occured while trying to access the file: " + filepath )
-			workbook = None
+
+		if useJXL:
+			try:
+				workbook = JXLWorkbook.getWorkbook( File( filepath ) )
+				self.poiUsage[ workbook ] = False
+			except BiffException, e:
+				log( "Couldn't open the file with JXL: " + filepath )
+				log( "Error e: " + e.toString() )
+			except:
+				log( "An error occured while trying to access the file: " + filepath )
+
 		return workbook
 
 	def getColumnHeader( self, nColumn ):
@@ -597,7 +620,7 @@ class SpreadsheetViewPanel( ViewPanel ):
 		return colHeading
 
 	def getJXLContent( self, data ):
-		sheet = data.getSheet(0)
+		sheet = data.getSheet( 0 )
 		nRows = sheet.getRows()
 		model = DefaultTableModel()
 		# Add rows
@@ -679,34 +702,100 @@ class SpreadsheetViewPanel( ViewPanel ):
 	def getPOIContent( self, data ):
 		sheet = data.getSheetAt( 0 )
 		rows = sheet.rowIterator()
+		model = DefaultTableModel()
+		# Add rows
+		while rows.hasNext():
+			rows.next()
+			model.addRow( [] )
+
+		# Get Column name from the spreedsheet and set table's column
+		addedCols = 0
+		availCols = {}
+		rows = sheet.rowIterator()
+		row = rows.next()
+		cells = row.cellIterator()
+		while cells.hasNext():
+			cell = cells.next()
+			cIdx = cell.getColumnIndex()
+			commonName = self.getColumnHeader(cIdx+1)
+			if self.columnFilter and commonName not in self.columnFilter:
+				continue
+			cellType = cell.getCellType()
+			if cellType == HSSFCell.CELL_TYPE_STRING:
+				richTextString = cell.getRichStringCellValue()
+				content = richTextString.getString()
+				if not content == "":
+					columnName = content
+					model.addColumn( columnName )
+					availCols[addedCols] = commonName
+					addedCols = addedCols + 1
+
+		# Create plotting structures
+		plotData = {}
+		columnPlotLink = {}
+		for i in availCols:
+			# check if this column is part of a plot
+			for p in self.plots:
+				for c in p:
+					if availCols[i] == c:
+						# Create a new structure for the data, if not present yet
+						if p not in plotData:
+							plotData[p] = []
+						# get all the values in this column
+						plotCoords = []
+						plotData[p].append( plotCoords )
+						columnPlotLink[i] = plotCoords
+
+		# Get cell contents and put them in the table
+		rows = sheet.rowIterator()
 		while rows.hasNext():
 			row = rows.next()
-			log( "Row No.: " + str( row.getRowNum() ) )
+			rIdx = row.getRowNum()
 			cells = row.cellIterator()
 			while cells.hasNext():
 				cell = cells.next()
-				c = cell.getCellNum()
-				commonName = self.getColumnHeader(c+1)
-				if self.columnFilter and commonName not in self.columnFilter:
-					continue
-				log( "Cell No.: " + str( c ) + " Column name: " + commonName )
-				cellType = cell.getCellType()
-				if cellType == HSSFCell.CELL_TYPE_NUMERIC:
-					# cell type numeric
-					log( "Numeric value: " + str( cell.getNumericCellValue() ) )
-				elif cellType == HSSFCell.CELL_TYPE_STRING:
-					# cell type string.
-					richTextString = cell.getRichStringCellValue()
-					log( "String value: " + richTextString.getString() )
-				else:
-					# types other than String and Numeric.
-					log( "Type not supported." )
-		return None
+				# check if this column is part of a plot
+				cIdx = cell.getColumnIndex()
+				val = cell.getNumericCellValue() 
+				# update the model
+				cell = sheet.getCell(i, j)
+				model.setValueAt( str(val), rIdx-1, cIdx)
+				# update plot data
+				if cIdx in columnPlotLink:
+					plotCoords = columnPlotLink[cIdx]
+					plotCoords.append( val )
 
+		# Create plots
+		charts = []
+		for k in plotData:
+			chart = Chart2D()
+			trace = Trace2DSimple()
+			chart.addTrace(trace)
+			chartData = plotData[k]
+			for i in range(0, len(chartData[0])):
+				x = float(chartData[0][i])
+				y = float(chartData[1][i])
+				trace.addPoint(x, y)
+			charts.append( chart )
+				
+		# close the workbook and free memory
+		data.close()
+		# create the table
+		table = JTable()
+		table.setModel(model)
+		# Make sure the header is displayed
+		panel = JPanel()
+		panel.setLayout(BorderLayout());
+		panel.add(table.getTableHeader(), BorderLayout.NORTH);
+		panel.add(table, BorderLayout.CENTER);
+		# all the components together
+		components = [ panel ]
+		components.extend( charts )
+		return components
 
 	def getContent( self, data ):
 		table = None
-		if self.usingPoi:
+		if self.poiUsage[data] == True:
 			table = self.getPOIContent( data )
 			table = JPanel()
 		else:
