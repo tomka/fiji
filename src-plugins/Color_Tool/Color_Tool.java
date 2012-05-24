@@ -33,12 +33,12 @@ import net.imglib2.type.numeric.ARGBType;
 
 public class Color_Tool< T extends RealType< T > > implements PlugIn {
 	protected enum Mode { Interior, Bound };
-	protected String rawPath = "";
+	protected String rawPath = ""; // "/home/tom/dev/rapha/Coloring/SegMasks/Test_{nn}.png";
 	protected String pathPattern;
 	protected final String patternStart = "{";
 	protected final String patternEnd = "}";
-	protected String csvFilePath = "";
-	protected String outputDirectory = "";
+	protected String csvFilePath = ""; // "/home/tom/dev/rapha/Coloring/center.csv";
+	protected String outputDirectory = ""; // "/home/tom/dev/rapha/Coloring/output";
 	protected Mode mode;
 	protected String delimiter = ",";
 
@@ -80,11 +80,8 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 	private boolean showDialog() {
 		GenericDialogPlus gd = new GenericDialogPlus("Color Tool");
 
-		//gd.addStringField("Image directory", "/home/tom/dev/rapha/Coloring/SegMasks/Test_{nn}.png");
 		gd.addFileField( "Image file pattern -- {nn}", rawPath );
-		//gd.addStringField("Output directory", "/home/tom/dev/rapha/Coloring/output");
 		gd.addDirectoryField( "Output directory", outputDirectory );
-		//gd.addStringField("CSV file", "/home/tom/dev/rapha/Coloring/center.csv");
 		gd.addFileField( "CSV file", csvFilePath );
 		gd.addStringField("Delimiter", delimiter);
 
