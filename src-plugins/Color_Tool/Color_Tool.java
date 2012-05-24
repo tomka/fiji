@@ -137,6 +137,7 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 
 	public void process() {
 		// read in CSV file
+		IJ.showStatus( "Reading CSV file" );
 		Vector<String[]> table = readCSV( csvFilePath );
 		if (table.size() == 0) {
 			IJ.log("Couldn't find any input data in the CSV file");
@@ -161,7 +162,7 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 		if (mode == Mode.Interior)
 			processCellCenters( table, fillcolor );
 
-        IJ.log( "All images have been processed." );
+		IJ.showStatus( "All images have been processed." );
 	}
 
 	HashMap< Integer, Vector< CellColorInfo > > getCellColoringPoints( Vector<String[]> data ) {
@@ -201,8 +202,13 @@ public class Color_Tool< T extends RealType< T > > implements PlugIn {
 
 		// iterate over all the frames we found
 		Iterator< Integer > frames = points.keySet().iterator();
+		int numImages = points.size();
+		int imageCounter = 0;
 		while ( frames.hasNext() ) {
+			imageCounter++;
 			Integer frame = frames.next();
+			IJ.showStatus( "Processing file " + imageCounter + "/" + numImages);
+			IJ.showProgress( imageCounter, numImages );
 
 			// open image for this frame
 			String path = getImagePath( frame.intValue() );
