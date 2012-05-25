@@ -290,8 +290,12 @@ extends Color_Tool implements PlugIn {
 					FloatType old = ra.get().copy();
 					// check if we need to fill at all
 					if ( old.compareTo( fill[d] ) != 0 ) {
-						// flood fill exery channel with the approptiate color
-						floodLoop( ra, width, height, old, fill[d] );
+						try {
+							// flood fill exery channel with the approptiate color
+							floodLoop( ra, width, height, old, fill[d] );
+						} catch (StackOverflowError e) {
+							IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) );
+						}
 					}
 				}
 				info.modified = true;
