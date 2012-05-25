@@ -1,45 +1,34 @@
 import ij.IJ;
 import ij.ImagePlus;
-import ij.process.ImageProcessor;
 import ij.WindowManager;
 import ij.gui.Toolbar;
 import ij.plugin.PlugIn;
 import fiji.util.gui.GenericDialogPlus;
-import ij.plugin.LutLoader;
 
 import java.awt.Color;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.util.Vector;
 import java.util.Iterator;
 import java.util.HashMap;
-import java.util.Arrays;
-import java.util.ArrayList;
+
+import java.io.File;
 import java.util.Collections;
 import java.util.Comparator;
-import java.awt.image.IndexColorModel;
-import java.lang.StackOverflowError;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
-import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.img.display.imagej.ImageJFunctions;
-import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.io.ImgIOException;
-import net.imglib2.io.ImgOpener;
 import net.imglib2.io.ImgSaver;
 import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.real.FloatType;
 
-public class Cell_Division_Color_Tool< T extends RealType< T > >
-extends Color_Tool implements PlugIn {
-	protected FloatType[][] lut;
-
+public class Basic_Cell_Color_Tool< T extends RealType< T > >
+extends Color_Tool implements PlugIn
+{
 	public void run(String arg) {
 			if ( arg.equals( "about" ) ) {
 			showAbout();
@@ -51,22 +40,12 @@ extends Color_Tool implements PlugIn {
 	}
 
 	private boolean showDialog() {
-		// read in available look up tables
-		String lutDir = IJ.getDirectory("luts");
-		ArrayList<LUTInfo> lutInfos= getLUTs( lutDir );
-		String[] luts = new String[ lutInfos.size() ];
-		for (int i=0; i<lutInfos.size(); ++i) {
-			luts[i] = lutInfos.get(i).name;
-		}
-
-		// create a dialog
 		GenericDialogPlus gd = new GenericDialogPlus("Color Tool");
 
 		gd.addFileField( "Image file pattern -- {nn}", rawPath );
 		gd.addDirectoryField( "Output directory", outputDirectory );
 		gd.addFileField( "CSV file", csvFilePath );
 		gd.addStringField("Delimiter", delimiter);
-		gd.addChoice("LUT", luts, luts[0]);
 
 		gd.showDialog();
 		if ( gd.wasCanceled() )
@@ -77,7 +56,6 @@ extends Color_Tool implements PlugIn {
 		outputDirectory = gd.getNextString();
 		csvFilePath = gd.getNextString();
 		delimiter = gd.getNextString();
-		int lutIndex =gd.getNextChoiceIndex();
 		mode = Mode.Interior;
 
 		// correct information if needed
@@ -95,15 +73,7 @@ extends Color_Tool implements PlugIn {
 			IJ.log( "Please specify source file information including a pattern {nn}" );
 			return false;
 		}
-
-		// load the look up table
-		this.lut = loadLUT( lutInfos.get( lutIndex ) );
-		if (lut == null) {
-			IJ.log( "Couldn't load LUT." );
-			return false;
-		} else {
-			return true;
-		}
+		return true;
 	}
 
 	public void process() {
@@ -131,110 +101,43 @@ extends Color_Tool implements PlugIn {
 
 		// further processing depends on the mode
 		if (mode == Mode.Interior)
-			processCellCenters( table );
+			processCellCenters( table, fillcolor );
 
-		IJ.showStatus( "All images have been processed.");
+		IJ.showStatus( "All images have been processed." );
 	}
 
 	HashMap< Integer, Vector< CellColorInfo > > getCellColoringPoints( Vector<String[]> data ) {
-		IJ.showStatus( "Sorting input data per frame" );
 		// parse the string data table in the following format:
 		// [<frame>, <x-pos>, <y-pos>]
 		Iterator<String[]> itr = data.iterator();
-		// a hash map to keep track of the cells that divided
-		HashMap< Integer, Integer > cells =
-			new HashMap< Integer, Integer >();
-		// create color frame information
-		while ( itr.hasNext() ) {
-			String[] element = itr.next();
-			int numElements = element.length;
-			if ( numElements < 7 ) {
-				IJ.log( "A data element had less than seven elements (" + numElements + "), ignoring it." );
-				continue;
-			}
-			try {
-				// get the data
-				Integer frame = Integer.valueOf( element[0] );
-				Integer parent_id = Integer.valueOf( element[1] );
-				Integer child_id = Integer.valueOf( element[4] );
-
-				/* check if know the child already or if we have
-				 *  found an earlier time point.
-				 */
-				if ( !cells.containsKey( parent_id ) ) {
-					cells.put( parent_id, frame );
-				} else {
-					Integer colorFrame = cells.get(parent_id);
-					if (frame < colorFrame)
-						cells.put( parent_id, frame );
-				}
-				/* check if know the child already or if we have
-				 *  found an earlier time point.
-				 */
-				if ( !cells.containsKey( child_id ) ) {
-					cells.put( child_id, frame );
-				} else {
-					Integer colorFrame = cells.get(child_id);
-					if (frame < colorFrame)
-						cells.put( child_id, frame );
-				}
-			}
-			catch (NumberFormatException e) {
-				// ignore the line if we can't read it
-			}
-		}
-		// create color infos
-		IJ.showStatus( "Creating data structures" );
-		// a hash map to keep coloring information for each frame
-		HashMap< Integer, Vector< CellColorInfo > > frames =
+		HashMap< Integer, Vector< CellColorInfo > > points =
 			new HashMap< Integer, Vector< CellColorInfo > >();
-		itr = data.iterator();
 		while ( itr.hasNext() ) {
 			String[] element = itr.next();
 			int numElements = element.length;
-			if ( numElements < 7 ) {
-				IJ.log( "A data element had less than seven elements (" + numElements + "), ignoring it." );
+			if ( numElements < 3 ) {
+				IJ.log( "A data element had less than three elements (" + numElements + "), ignoring it." );
 				continue;
 			}
-			try {
-				// get the data
-				Integer frame = Integer.valueOf( element[0] );
-				Integer parent_id = Integer.valueOf( element[1] );
-				float parent_x = Float.parseFloat( element[2] );
-				float parent_y = Float.parseFloat( element[3] );
-				Integer child_id = Integer.valueOf( element[4] );
-				float child_x = Float.parseFloat( element[5] );
-				float child_y = Float.parseFloat( element[6] );
-
-				// make sure we have a list of cells for the current frame
-				if ( !frames.containsKey( frame ) ) {
-					frames.put( frame, new Vector< CellColorInfo >() );
-				}
-
-				// add parent and child cell info to current frame
-				CellColorInfo child = new CellColorInfo( frame,
-					cells.get(child_id), (long)child_x, (long)child_y );
-				CellColorInfo parent = new CellColorInfo( frame,
-					cells.get(parent_id), (long)parent_x, (long)parent_y );
-				frames.get( frame ).add( child );
-				frames.get( frame ).add( parent );
-			}
-			catch (NumberFormatException e) {
-				// ignore the line if we can't read it
-			}
+			// get the data
+			Integer frame = Integer.valueOf( element[0] );
+			float x = Float.parseFloat( element[1] );
+			float y = Float.parseFloat( element[2] );
+			if ( !points.containsKey( frame ) )
+				points.put( frame, new Vector< CellColorInfo >() );
+			points.get( frame ).add( new CellColorInfo( frame, (long)x, (long)y ) );
 		}
 
-		return frames;
+		return points;
 	}
 
-	FloatType[] getFillColor( int frame, int maxFrames ) {
-		float scale = (float)frame / (float)maxFrames;
-		int idx = (int)( (this.lut.length - 1) * scale );
+	void processCellCenters( Vector<String[]> data, float[] fillcolor ) {
+		FloatType fill[] = new FloatType[3];
+		for (int i=0;i<3;i++) {
+			fill[i] = new FloatType();
+			fill[i].setReal( fillcolor[i] );
+		}
 
-		return this.lut[idx];
-	}
-
-	void processCellCenters( Vector<String[]> data ) {
 		HashMap< Integer, Vector< CellColorInfo > > points =
 			getCellColoringPoints( data );
 
@@ -250,7 +153,7 @@ extends Color_Tool implements PlugIn {
 
 			// open image for this frame
 			String path = getImagePath( frame.intValue() );
-			ImageInfo info = new ImageInfo( path, frame );
+			ImageInfo info = new ImageInfo( path );
 			Img< FloatType > img = loadImage( info.path );
 			long width = img.dimension( 0 );
 			long height = img.dimension( 1 );
@@ -276,10 +179,6 @@ extends Color_Tool implements PlugIn {
 						IJ.log( "Requested position is out of bounds." );
 						return;
 				}
-
-				// get fill color
-				FloatType[] fill = getFillColor(
-					cci.colorFrame.intValue(), numImages );
 
 				// iterate over every channel
 				for (int d=0; d<3; d++) {
