@@ -375,7 +375,7 @@ plugins/Algorithm_Launcher.jar <- \
 	src-plugins/Algorithm_Launcher/**/*.config
 
 CLASSPATH(plugins/Color_Tool.jar)=jars/ij.jar:jars/imglib2.jar:jars/imglib2-ij.jar:jars/fiji-lib.jar:jars/imglib2-io.jar:plugins/loci_tools.jar
-plugins/Color_Tool.jar <- src-plugins/Color_Tool/**/*.java
+plugins/Color_Tool.jar <- src-plugins/Color_Tool/**/*.java src-plugins/Color_Tool/*.config
 
 CLASSPATH(plugins/Directionality_.jar)=jars/ij.jar:jars/jfreechart.jar:jars/jcommon.jar
 CLASSPATH(plugins/LSM_Toolbox.jar)=jars/ij.jar:plugins/LSM_Reader.jar
