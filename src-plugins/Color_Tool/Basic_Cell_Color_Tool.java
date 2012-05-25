@@ -1,5 +1,6 @@
 import ij.IJ;
 import ij.ImagePlus;
+import ij.Prefs;
 import ij.WindowManager;
 import ij.gui.Toolbar;
 import ij.plugin.PlugIn;
@@ -40,6 +41,15 @@ extends Color_Tool implements PlugIn
 	}
 
 	private boolean showDialog() {
+		// set up the users preferences
+		rawPath = Prefs.get(PREF_KEY+"rawPath", "");
+		csvFilePath = Prefs.get(PREF_KEY+"csvFilePath", "");
+		outputDirectory = Prefs.get(PREF_KEY+"outputDirectory", "");
+		delimiter = Prefs.get(PREF_KEY+"delimiter", ",");
+		patternStart = Prefs.get(PREF_KEY+"patternStart", "{");
+		patternEnd = Prefs.get(PREF_KEY+"patternEnd", "}");
+		outputFileType = Prefs.get(PREF_KEY+"outputFileType", "png");
+
 		GenericDialogPlus gd = new GenericDialogPlus("Color Tool");
 
 		gd.addFileField( "Image file pattern -- {nn}", rawPath );
@@ -63,6 +73,15 @@ extends Color_Tool implements PlugIn
 		if ( outputDirectory.lastIndexOf( fileSep ) != outputDirectory.length() - 1 ) {
 			outputDirectory = outputDirectory + fileSep;
 		}
+
+		// save user preferences
+		Prefs.set(PREF_KEY+"rawPath", rawPath);
+		Prefs.set(PREF_KEY+"csvFilePath", csvFilePath);
+		Prefs.set(PREF_KEY+"outputDirectory", outputDirectory);
+		Prefs.set(PREF_KEY+"delimiter", delimiter);
+		Prefs.set(PREF_KEY+"patternStart", patternStart);
+		Prefs.set(PREF_KEY+"patternEnd", patternEnd);
+		Prefs.set(PREF_KEY+"outputFileType", outputFileType);
 
 		// set up some more path information
 		try {

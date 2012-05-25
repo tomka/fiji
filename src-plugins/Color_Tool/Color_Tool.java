@@ -20,11 +20,12 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.real.FloatType;
 
 public class Color_Tool {
+	protected static String PREF_KEY = "Color_Tool.";
 	protected enum Mode { Interior, Bound };
 	protected String rawPath = ""; // "/home/tom/.gvfs/project_raphael auf fileserver/111102_PW_from16h00_EcadGFP-27deg_25deg_SD3_FULL-SEGMENTATION/OptimizedMaxProj_30/Optimized_projection_{nnn}/handCorrection.png";
 	protected String pathPattern;
-	protected final String patternStart = "{";
-	protected final String patternEnd = "}";
+	protected String patternStart = "{";
+	protected String patternEnd = "}";
 	protected String csvFilePath = ""; // "/home/tom/dev/rapha/Coloring/dividing_cells.csv";
 	protected String outputDirectory = ""; // "/home/tom/dev/rapha/Coloring/output";
 	protected Mode mode;
