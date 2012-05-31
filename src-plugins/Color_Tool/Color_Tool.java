@@ -1,9 +1,12 @@
 import ij.IJ;
 import ij.ImagePlus;
+import ij.LookUpTable;
+import ij.process.ImageProcessor;
 import ij.util.StringSorter;
 
 import java.util.ArrayList;
 import java.util.Vector;
+import java.awt.image.IndexColorModel;
 
 import java.io.File;
 import java.io.FileReader;
@@ -133,33 +136,33 @@ public class Color_Tool {
 		} else if (li.type == LUTType.Quarters) {
 			int[] _r = {0,0,255,0};
 			int[] _g = {0,255,255,0};
-			int[] _b = {255,0,0,0};
+			int[] _b = {255,0,0,255};
 			r = _r; g = _g; b = _b;
 		} else {
-			int[] _r = {0,0,255,0};
-			int[] _g = {0,255,255,0};
-			int[] _b = {255,0,0,0};
-			r = _r; g = _g; b = _b;
 			// read in the LUT
 			ImagePlus imp = (ImagePlus)IJ.runPlugIn("ij.plugin.LutLoader", li.path);
-			//imp.show();
-	
-			//ImageProcessor ip = imp.getProcessor();
-			//if (imp == null || ip == null) {
-			//	IJ.log("Couldn't load look up table: " + li.path);
-			//	return null;
-			//}
-			// store the values in a FloatType array
-	
-			//int width = ip.getWidth();
-			//int height = ip.getHeight();
-	
-			//int[] rgb = new int[3];
-			//for (int x=0; x<width; x++) {
-			//	ip.getPixel(x, 0, rgb);
-			//	System.out.println( rgb[0] + " " + rgb[1] + " " + rgb[2] );
-			//}
-			//return null;
+			ImageProcessor ip = imp.getChannelProcessor();
+			if (ip == null) {
+				IJ.log("Couldn't load look up table: " + li.path);
+				return null;
+			}
+			// get color model and LUT colors
+		        IndexColorModel cm = (IndexColorModel)ip.getColorModel();
+		        LookUpTable lut = new LookUpTable(cm);
+			int mapSize = lut.getMapSize();
+			byte[] _rB = lut.getReds();
+			byte[] _gB = lut.getGreens();
+			byte[] _bB = lut.getBlues();
+			int[] _r = new int[mapSize];
+			int[] _g = new int[mapSize];
+			int[] _b = new int[mapSize];
+			// convert to internal integer representation
+			for (int i=0; i<mapSize; ++i) {
+				_r[i] = _rB[i]&255;
+				_g[i] = _gB[i]&255;
+				_b[i] = _bB[i]&255;
+			}
+			r = _r; g = _g; b = _b;
 		}
 
 		int entries = r.length;
