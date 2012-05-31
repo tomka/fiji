@@ -74,6 +74,7 @@ extends Color_Tool implements PlugIn {
 
 		gd.addFileField( "Image file pattern -- {nn}", rawPath );
 		gd.addDirectoryField( "Output directory", outputDirectory );
+		gd.addMessage( "CSV Data: Frame, ParentID, ParentX, ParentY, ChildID, ChildX, ChildY" );
 		gd.addFileField( "CSV file", csvFilePath );
 		gd.addStringField("Delimiter", delimiter);
 		gd.addChoice("LUT", luts, luts[0]);
