@@ -314,7 +314,7 @@ extends Color_Tool implements PlugIn {
 							// flood fill exery channel with the approptiate color
 							floodLoop( ra, width, height, old, fill[d] );
 						} catch (StackOverflowError e) {
-							IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) );
+							IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) + " in frame " + frame);
 						}
 					}
 				}
