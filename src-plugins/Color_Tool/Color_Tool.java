@@ -257,6 +257,9 @@ public class Color_Tool {
 	 * http://www.codecodex.com/wiki/Implementing_the_flood_fill_algorithm
 	 */
 	protected static <S extends RealType< S > > void floodLoop( RandomAccess<S> ra, long width, long height, S old, S fill ) {
+		// return if old and new color are the same
+		if (old.compareTo(fill) == 0)
+			return;
 		// start position is the current position of the RandomAccess
 		long x = ra.getLongPosition( 0 );
 		long y = ra.getLongPosition( 1 );
