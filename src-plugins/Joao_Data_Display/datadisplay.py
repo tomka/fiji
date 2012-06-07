@@ -15,8 +15,9 @@ sys.path.append( os.path.join( fijidir, "/plugins/Data_Viewer" ) )
 from org.yaml.snakeyaml import Yaml
 from java.io import File, FileInputStream
 from java.util import List, Map
-from swinggui import SelectionGUI, DataGUI
+from swinggui import SelectionGUI, DataGUI, OmeroExportGUI
 from structures import Condition, Experiment, Project, View
+from omeroconnector import exportProjectToOmero
 
 # Creates projects based on a name
 def loadSampleProject( name ):

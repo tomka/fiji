@@ -47,6 +47,33 @@ from org.icepdf.ri.util import PropertiesManager
 from org.icepdf.ri.common import SwingController, SwingViewBuilder
 from org.icepdf.core.views import DocumentViewController
 
+class OmeroExportGUI:
+	def __init__(self, controler):
+		self.controler = controler
+		self.frame =None
+		self.init()
+
+	def init(self):
+		frame = JFrame( "OMERO export" )
+		frame.setLayout( BorderLayout() )
+		buttonPanel = JPanel()
+		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.close() ) )
+		buttonPanel.add( JButton("Export", actionPerformed=lambda x: self.controler.exportToOmero() ) )		
+		frame.add( buttonPanel, BorderLayout.SOUTH )
+		# General frame setup
+		frame.pack()
+		frame.setSize( 400, 300 )
+		frame.setVisible( False )
+		# store as fields
+		self.frame = frame
+
+	def close(self):
+		self.frame.setVisible( False )
+		self.frame.dispose()
+
+	def show(self):
+		self.frame.setVisible( True )
+
 # A GUI that supports multiple screens
 class SelectionGUI:
 	def __init__(self, controler):
@@ -111,6 +138,7 @@ class SelectionGUI:
 		# button panel
 		buttonPanel = JPanel()
 		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.controler.exitProgram() ) )
+		buttonPanel.add( JButton("Export to OMERO", actionPerformed=lambda x: self.controler.showOmeroExportDialog() ) )
 		buttonPanel.add( self.continueButton )
 		selectionPanel.add( buttonPanel, BorderLayout.SOUTH)
 		frame.add( selectionPanel, BorderLayout.CENTER )

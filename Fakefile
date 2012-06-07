@@ -347,7 +347,7 @@ MAINCLASS(jars/javac.jar)=com.sun.tools.javac.Main
 
 CLASSPATH(jars/fiji-scripting.jar)=jars/ij.jar:jars/jython.jar:jars/fiji-compat.jar:jars/bsh.jar:jars/js.jar
 CLASSPATH(plugins/Refresh_Javas.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/fake.jar:jars/fiji-compat.jar
-CLASSPATH(plugins/Jython_Interpreter.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/jython.jar:jars/snakeyaml-1.9.jar:jars/jxl.jar:jars/poi-3.7-20101029.jar:jars/poi-ooxml-3.7-20101029.jar:jars/jchart2d-3.2.2.jar:jars/icepdf-core.jar:jars/icepdf-viewer.jar
+CLASSPATH(plugins/Jython_Interpreter.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/jython.jar:jars/snakeyaml-1.9.jar:jars/jxl.jar:jars/poi-3.7-20101029.jar:jars/poi-ooxml-3.7-20101029.jar:jars/jchart2d-3.2.2.jar:jars/icepdf-core.jar:jars/icepdf-viewer.jar:jars/omero_client.jar
 CLASSPATH(plugins/Clojure_Interpreter.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/clojure.jar
 CLASSPATH(plugins/JRuby_Interpreter.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/jruby.jar
 CLASSPATH(plugins/BeanShell_Interpreter.jar)=jars/ij.jar:jars/fiji-scripting.jar:jars/bsh.jar
