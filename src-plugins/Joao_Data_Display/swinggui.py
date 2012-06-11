@@ -12,7 +12,7 @@ fijidir = getProperty("fiji.dir")
 sys.path.append( os.path.join( fijidir, "/plugins/Data_Viewer" ) )
 from helpers import log, exit
 
-from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable, JComboBox, JSlider
+from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable, JComboBox, JSlider,JTextField, JPasswordField
 from javax.swing.table import DefaultTableModel
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
 from ij import IJ, ImagePlus
@@ -22,6 +22,7 @@ from loci.plugins import LociImporter
 from loci.plugins import BF
 from loci.plugins.in import ImporterOptions
 from structures import Condition, Experiment, Project, View
+from java.lang import String
 
 # Spreadsheet
 from org.apache.poi.hssf.usermodel import HSSFCell, HSSFRichTextString, HSSFRow, HSSFSheet, HSSFWorkbook
@@ -50,22 +51,45 @@ from org.icepdf.core.views import DocumentViewController
 class OmeroExportGUI:
 	def __init__(self, controler):
 		self.controler = controler
-		self.frame =None
+		self.frame = None
+		self.hostInput = None
+		self.portInput = None
+		self.userInput = None
+		self.passInput = None
 		self.init()
 
 	def init(self):
 		frame = JFrame( "OMERO export" )
 		frame.setLayout( BorderLayout() )
+		self.hostInput = JTextField(30)
+		self.portInput = JTextField(30)
+		self.userInput = JTextField(30)
+		self.passInput = JPasswordField(30)
+		inputPanel1 = JPanel(BorderLayout())
+		inputPanel1.add( self.hostInput, BorderLayout.NORTH )
+		inputPanel1.add( self.portInput, BorderLayout.CENTER )
+		inputPanel2 = JPanel(BorderLayout())
+		inputPanel2.add( self.userInput, BorderLayout.NORTH )
+		inputPanel2.add( self.passInput, BorderLayout.CENTER )
+		frame.add( inputPanel1, BorderLayout.NORTH )
+		frame.add( inputPanel2, BorderLayout.CENTER )
 		buttonPanel = JPanel()
 		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.close() ) )
-		buttonPanel.add( JButton("Export", actionPerformed=lambda x: self.controler.exportToOmero() ) )		
+		buttonPanel.add( JButton("Export", actionPerformed=lambda x: self.export() ) )
 		frame.add( buttonPanel, BorderLayout.SOUTH )
 		# General frame setup
 		frame.pack()
-		frame.setSize( 400, 300 )
+		frame.setSize( 400, 150 )
 		frame.setVisible( False )
 		# store as fields
 		self.frame = frame
+
+	def export(self):
+		host = self.hostInput.getText()
+		port = int( self.portInput.getText() )
+		username = self.userInput.getText()
+		password = String.valueOf( self.passInput.getPassword() )
+		self.controler.exportToOmero(host, port, username, password)
 
 	def close(self):
 		self.frame.setVisible( False )

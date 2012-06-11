@@ -1,10 +1,24 @@
 from omero import client
 from omero import rtypes
-from omero.model import Project, DatasetAnnotationLink, TagAnnotationI, ProjectAnnotationLinkI, DatasetAnnotationLinkI, ProjectDatasetLinkI, ProjectI, DatasetI
+from omero.model import Dataset, Project, DatasetAnnotationLink, TagAnnotationI, ProjectAnnotationLinkI, DatasetAnnotationLinkI, ProjectDatasetLinkI, ProjectI, DatasetI, OriginalFileI, FileAnnotationI, ImageAnnotationLinkI, ImageI
 from omero.sys import ParametersI
 from pojos import ProjectData, DatasetData
 
-from java.util import ArrayList
+from jarray import zeros
+from java.util import ArrayList, Formatter, Arrays
+from java.io import File, FileInputStream, BufferedInputStream
+from java.nio import ByteBuffer
+from java.security import MessageDigest, DigestInputStream
+from java.lang import StringBuffer, Long
+
+import subprocess as sub
+
+def byteArray2Hex( byteHash):
+	""" Converts a byte array to a hex array. """
+	formatter = Formatter()
+	for b in byteHash:
+		formatter.format("%02x", b)
+	return formatter.toString()
 
 class OmeroExporter:
 	def __init__(self, host, port, username, password):
@@ -18,6 +32,7 @@ class OmeroExporter:
 		self.metadataProxy = None
 		self.userId = None
 		self.groupId = None
+		self.tagCache = {}
 
 	def connect(self):
 		cln = client(self.host, self.port)
@@ -71,11 +86,91 @@ class OmeroExporter:
 
 	def create_new_tag( self, text, description="", namespace="" ):
 		""" Creates a new IObject TagAnnotationI object. """
+		# Return the cached tag, if possible
+		if text in self.tagCache:
+			return self.tagCache[ text ]
+		# Create a new tag
 		tag = TagAnnotationI()
 		tag.setTextValue( rtypes.rstring( text ) )
 		tag.setDescription( rtypes.rstring( description ) )
 		tag.setNs( rtypes.rstring( namespace ) )
+		# Save the tag on the server
+		tag = self.save( tag )
+		# Put the new tag in the tag cache
+		self.tagCache[ text ] = tag
+
 		return tag
+
+	def create_new_file_annotation( self, originalFile, description="", namespace="" ):
+		""" Creates a new FileAnnotation instance. Expects that the
+		original File in DB and raw data uploaded."""
+		fa = FileAnnotationI()
+		fa.setFile(originalFile)
+		fa.setDescription( rtypes.rstring( description) )
+		fa.setNs( rtypes.rstring( namespace ) )
+
+		return fa
+
+	def save_new_file( self, fileObj, mimeType="application/octet-stream" ):
+		""" Creates a new OriginalFile instance. It won't create the SHA-1 sum."""
+		name = fileObj.getName()
+		absolutePath = fileObj.getAbsolutePath()
+		path = absolutePath[ 0 : len(absolutePath) - len(name) ]
+		# create the original file object.
+		originalFile = OriginalFileI()
+		originalFile.setName( rtypes.rstring( name ) )
+		originalFile.setPath( rtypes.rstring( path ) )
+		originalFile.setSize( rtypes.rlong( fileObj.length() ) )
+		originalFile.setMimetype( rtypes.rstring(mimeType) )
+
+		# The SHA-1 calculator
+		"""
+		algorithm = MessageDigest.getInstance("SHA1")
+		fis = FileInputStream( fileObj )
+		bis = BufferedInputStream(fis)
+		dis = DigestInputStream(bis, algorithm)
+		# read the file and update the hash calculation
+		while dis.read() != -1:
+			continue
+		# get the hash value as byte array
+		fileBytheHash = algorithm.digest()
+		fileHexHash = byteArray2Hex( fileBytheHash )
+		"""
+		# For now, use the sha1sum tool
+		p = sub.Popen('/usr/bin/sha1sum \'' + absolutePath + '\'',shell=True,stdout=sub.PIPE,stderr=sub.PIPE)
+		output, errors = p.communicate()
+		fileHexHash = output[0:output.find(" ")]
+
+		# Assign the SHA-1 string to the OriginalFile instance
+		originalFile.setSha1( rtypes.rstring( fileHexHash ) )
+
+		# Save the original file
+		originalFile = self.save( originalFile )
+
+		## Read in the file's content
+		INC = 262144
+		# Initialize the service to load the raw data
+		rawFileStore = self.entry.createRawFileStore()
+		rawFileStore.setFileId( originalFile.getId().getValue() )
+
+		stream = FileInputStream( fileObj )
+		pos = 0
+		buf = zeros(INC, 'b')
+		rlen = stream.read(buf)
+		while rlen > 0:
+			rawFileStore.write(buf, pos, rlen)
+			pos += rlen
+			bbuf = ByteBuffer.wrap(buf)
+			bbuf.limit(rlen)
+			rlen = stream.read(buf)
+		stream.close()
+
+		originalFile = rawFileStore.save()
+		# Important to close the service
+		rawFileStore.close()
+
+		return (originalFile, fileHexHash)
+
 
 	def test_tagging(self):
 		print( "[Annotation test]" )
@@ -153,6 +248,7 @@ def exportProjectToOmero( project, host, port, username, password, namespace="da
 		datasetData.setName( e.name );
 		description = "This is the data of the experiment " + e.name + ". It has the following conditions: "
 		annotations = []
+		# Add the experiment conditions as tags
 		for nc,c in enumerate(e.conditions):
 			# Add a condition separator if needed
 			if nc > 0:
@@ -170,6 +266,31 @@ def exportProjectToOmero( project, host, port, username, password, namespace="da
 					tDesc = "A tag for a single experiment condition: " + tName
 					optionTag = exporter.create_new_tag( tName, tDesc, namespace )
 					annotations.append( optionTag )
+		# Add the related files as file annotations
+		imagePaths = []
+		fileannotations = []
+		for nv,v in enumerate(e.views):
+			print( "\tView: " + v.name )
+			for path in v.paths:
+				# import meta data view files as images
+				if v.name == v.metadataName:
+					print( "\t\tImage: " + path )
+					imagePaths.append( path )
+				else:
+					print( "\t\tAnnotation: " + path )
+					fileObj = File(path)
+					if not fileObj.exists():
+						print( "\t\t\tCouldn't find file, ignoring it." )
+						continue
+					# save the originalFile object, upload it
+					originalFile, fileHash = exporter.save_new_file( fileObj )
+					print( "\t\t\tSHA1 hash: " + fileHash )
+					# Create and save the new file annotation
+					fDesc = "A file belonging to experiment/dataset " + e.name + "."
+					fa = exporter.create_new_file_annotation( originalFile, fDesc, namespace )
+					fa = exporter.save(fa)
+					fileannotations.append( fa )
+
 		description += "."
 		datasetData.setDescription(description);
 		# Add the dataset to OMERO
@@ -181,12 +302,62 @@ def exportProjectToOmero( project, host, port, username, password, namespace="da
 		link.setParent( ProjectI( p.id.getValue(), False ) )
 		r = exporter.save( link )
 
-		# Link annotations
+		# Import images
+		# At the moment it is easier to just call the CLI importer
+		importerBin = "/home/tom/tmp/OMERO.clients-Beta4.3.3.linux/importer-cli"
+		arguments = "-s " + host + " -u " + username + " -w " + password + " -d " + str(d.getId().getValue())
+		for ip in imagePaths:
+			iFile = File(ip)
+			iName = "\"" + iFile.getName() + "\""
+			iDesc = "\"An image of experiment/dataset " + e.name + ".\""
+			arguments += " -n " + iName + " -x " + iDesc
+			print( ">>>>>>>>>>>>>> IMPORTING " + ip + " <<<<<<<<<<<<<<<<<" )
+			call = importerBin + " " + arguments + ' \'' + ip + '\''
+			print( "Call: " + call )
+			pcall = sub.Popen(call, shell=True, stdout=sub.PIPE, stderr=sub.PIPE)
+			output, errors = pcall.communicate()
+			print(output)
+			print( ">>>>>>>>>>>>>> DONE <<<<<<<<<<<<<<<<<" )
+
+		# Link annotations to datasets
 		for a in annotations:
+			# Link to datasets
 			link = DatasetAnnotationLinkI()
 			link.setChild( a )
 			link.setParent( DatasetI( d.id.getValue(), False ))
 			r = exporter.save( link )
+
+		# Link  file annotations to datasets
+		for a in fileannotations:
+			# Link to datasets
+			link = DatasetAnnotationLinkI()
+			link.setChild( a )
+			link.setParent( DatasetI( d.id.getValue(), False ))
+			r = exporter.save( link )
+
+		# Link annotations to images
+		param = ParametersI()
+		param.exp( rtypes.rlong(exporter.userId) )
+		param.leaves() # load images
+		print("\tAnnotating images")
+		uid = Long(d.getId().getValue())
+		results = exporter.containerProxy.loadContainerHierarchy(Dataset.canonicalName, [uid], param)
+		if results is not None:
+			for r in results:
+				dataset = DatasetData( r )
+				images = dataset.getImages()
+				for img in images:
+					print( "\tAnnotating image (id " + str(img.getId()) + "): " + img.getName() )
+					for a in annotations:
+						link = ImageAnnotationLinkI()
+						link.setChild( a )
+						link.setParent( ImageI( img.getId(), False ) )
+						r = exporter.save( link )
+						print("\tannotated")
+		else:
+			print( "\tNo images found." )
+
 		print( "Created data set: " + description )
 
 	exporter.closeConnection()
+	print( "Done" )

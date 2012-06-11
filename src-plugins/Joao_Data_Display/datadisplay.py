@@ -188,6 +188,15 @@ class Controler:
 			ui.close()
 		log( "Good bye" )
 
+	def showOmeroExportDialog(self):
+		gui = OmeroExportGUI(self)
+		self.uis.append(gui)
+		gui.show()
+
+	def exportToOmero(self, host, port, username, password):
+		log( "Exporting data to OMERO server" )
+		exportProjectToOmero( self.project, host, port, username, password )
+
 # Main entry
 def main():
 	od = OpenDialog("Choose experiment file", None)
