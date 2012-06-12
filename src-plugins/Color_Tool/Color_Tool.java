@@ -101,9 +101,23 @@ public class Color_Tool {
 	
 	public ArrayList<LUTInfo> getLUTs(String path) {
 		ArrayList<LUTInfo> luts = new ArrayList<LUTInfo>();
-		// add built-in LUTs
+		// add plugin built-in LUTs
 		luts.add( new LUTInfo( "Ice (built-in)", LUTType.Ice ) );
 		luts.add( new LUTInfo( "Quarters (built-in)", LUTType.Quarters ) );
+		// add Fiji build-in LUTs
+		luts.add( new LUTInfo( "Fire", "Fire" ) );
+		luts.add( new LUTInfo( "Grays", "Grays" ) );
+		luts.add( new LUTInfo( "Ice", "Ice" ) );
+		luts.add( new LUTInfo( "Spectrum", "Spectrum" ) );
+		luts.add( new LUTInfo( "3-3-2 RGB", "3-3-2 RGB" ) );
+		luts.add( new LUTInfo( "Red", "Red" ) );
+		luts.add( new LUTInfo( "Green", "Green" ) );
+		luts.add( new LUTInfo( "Blue", "Blue" ) );
+		luts.add( new LUTInfo( "Cyan", "Cyan" ) );
+		luts.add( new LUTInfo( "Magenta", "Magenta" ) );
+		luts.add( new LUTInfo( "Yellow", "Yellow" ) );
+		luts.add( new LUTInfo( "Red/Green", "Red/Green" ) );
+	
 		// add file LUTs
 		if (path==null)
 			return luts;
