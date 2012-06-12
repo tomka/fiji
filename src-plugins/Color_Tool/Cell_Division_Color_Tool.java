@@ -311,14 +311,11 @@ extends Color_Tool implements PlugIn {
 					ra.setPosition( pos );
 					// expect to be in a cell -- flood fill!
 					FloatType old = ra.get().copy();
-					// check if we need to fill at all
-					if ( old.compareTo( fill[d] ) != 0 ) {
-						try {
-							// flood fill exery channel with the approptiate color
-							floodLoop( ra, width, height, old, fill[d] );
-						} catch (StackOverflowError e) {
-							IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) + " in frame " + frame);
-						}
+					try {
+						// flood fill exery channel with the approptiate color
+						floodLoop( ra, width, height, old, fill[d] );
+					} catch (StackOverflowError e) {
+						IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) + " in frame " + frame);
 					}
 				}
 				info.modified = true;
