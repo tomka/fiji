@@ -272,6 +272,9 @@ extends Color_Tool implements PlugIn {
 			String path = getImagePath( frame.intValue() );
 			ImageInfo info = new ImageInfo( path, frame );
 			Img< FloatType > img = loadImage( info.path );
+			if (img == null) {
+				continue;
+			}
 			long width = img.dimension( 0 );
 			long height = img.dimension( 1 );
 
