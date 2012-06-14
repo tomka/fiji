@@ -58,20 +58,22 @@ public class Color_Tool {
 	}
 	
 	protected class CellColorInfo {
+		public Integer cellId;
 		public Integer frame;
 		public Integer colorFrame;
 		public long x;
 		public long y;
 
-		public CellColorInfo( Integer f, long x, long y ) {
-			this( f, f, x, y );
+		public CellColorInfo( Integer f, long x, long y, Integer cellId ) {
+			this( f, f, x, y, cellId );
 		}
 
-		public CellColorInfo( Integer f, Integer cf, long x, long y ) {
+		public CellColorInfo( Integer f, Integer cf, long x, long y, Integer cellId ) {
 			this.frame = f;
 			this.colorFrame = cf;
 			this.x = x;
 			this.y = y;
+			this.cellId = cellId;
 		}
 	}
 

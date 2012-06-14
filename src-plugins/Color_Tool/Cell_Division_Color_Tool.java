@@ -240,9 +240,9 @@ extends Color_Tool implements PlugIn {
 
 				// add parent and child cell info to current frame
 				CellColorInfo child = new CellColorInfo( frame,
-					cells.get(child_id), (long)child_x, (long)child_y );
+					cells.get(child_id), (long)child_x, (long)child_y, child_id );
 				CellColorInfo parent = new CellColorInfo( frame,
-					cells.get(parent_id), (long)parent_x, (long)parent_y );
+					cells.get(parent_id), (long)parent_x, (long)parent_y, parent_id );
 				frames.get( frame ).add( child );
 				frames.get( frame ).add( parent );
 			}

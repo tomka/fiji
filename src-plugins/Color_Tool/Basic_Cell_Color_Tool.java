@@ -144,7 +144,7 @@ extends Color_Tool implements PlugIn
 			float y = Float.parseFloat( element[2] );
 			if ( !points.containsKey( frame ) )
 				points.put( frame, new Vector< CellColorInfo >() );
-			points.get( frame ).add( new CellColorInfo( frame, (long)x, (long)y ) );
+			points.get( frame ).add( new CellColorInfo( frame, (long)x, (long)y, new Integer(-1) ) );
 		}
 
 		return points;
