@@ -68,6 +68,12 @@ extends Color_Tool implements PlugIn {
 		patternStart = Prefs.get(PREF_KEY+"patternStart", "{");
 		patternEnd = Prefs.get(PREF_KEY+"patternEnd", "}");
 		outputFileType = Prefs.get(PREF_KEY+"outputFileType", "png");
+		int lutIndex = (int) Prefs.get(PREF_KEY+"lutIndex", 0.0);
+
+		// correct LUT index if needed
+		if (lutIndex >= luts.length) {
+			lutIndex = 0;
+		}
 
 		// create a dialog
 		GenericDialogPlus gd = new GenericDialogPlus("Color Tool");
@@ -77,7 +83,7 @@ extends Color_Tool implements PlugIn {
 		gd.addMessage( "CSV Data: Frame, ParentID, ParentX, ParentY, ChildID, ChildX, ChildY" );
 		gd.addFileField( "CSV file", csvFilePath );
 		gd.addStringField("Delimiter", delimiter);
-		gd.addChoice("LUT", luts, luts[0]);
+		gd.addChoice("LUT", luts, luts[lutIndex]);
 
 		gd.showDialog();
 		if ( gd.wasCanceled() )
@@ -88,7 +94,7 @@ extends Color_Tool implements PlugIn {
 		outputDirectory = gd.getNextString();
 		csvFilePath = gd.getNextString();
 		delimiter = gd.getNextString();
-		int lutIndex =gd.getNextChoiceIndex();
+		lutIndex = gd.getNextChoiceIndex();
 		mode = Mode.Interior;
 
 		// correct information if needed
@@ -105,6 +111,7 @@ extends Color_Tool implements PlugIn {
 		Prefs.set(PREF_KEY+"patternStart", patternStart);
 		Prefs.set(PREF_KEY+"patternEnd", patternEnd);
 		Prefs.set(PREF_KEY+"outputFileType", outputFileType);
+		Prefs.set(PREF_KEY+"lutIndex", lutIndex);
 
 		// set up some more path information
 		try {
