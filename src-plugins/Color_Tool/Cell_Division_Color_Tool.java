@@ -346,9 +346,7 @@ extends Color_Tool implements PlugIn {
 			replaceValue( img, boundaryMarker, boundValues );
 
 			// Create an RGB image out of it and save the file back to disk
-			Img< ARGBType > result = convertToARGB( img );
-			ImagePlus imp = ImageJFunctions.wrap( result, "Result" );
-			IJ.saveAs( imp, "png", info.outputPath );
+			saveImage( img, info.outputPath );
 		}
 	}
 

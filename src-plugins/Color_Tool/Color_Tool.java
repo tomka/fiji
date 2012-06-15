@@ -15,6 +15,7 @@ import java.io.BufferedReader;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.img.Img;
 import net.imglib2.io.ImgIOException;
 import net.imglib2.io.ImgOpener;
@@ -264,6 +265,16 @@ public class Color_Tool {
 			patternStart + pathPattern + patternEnd,
 			number);
 		return path;
+	}
+
+	/**
+	 * Save the image to the specified output path. It is converted to
+	 * an RGB image and saved as a PNG file.
+	 */
+	protected void saveImage( Img< FloatType > img, String outputPath ) {
+		Img< ARGBType > result = convertToARGB( img );
+		ImagePlus imp = ImageJFunctions.wrap( result, "Result" );
+		IJ.saveAs( imp, "png", outputPath );
 	}
 
 	protected Img< FloatType > loadImage( String path ) {
