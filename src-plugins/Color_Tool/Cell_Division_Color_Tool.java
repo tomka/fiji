@@ -290,12 +290,6 @@ extends Color_Tool implements PlugIn {
 			long width = img.dimension( 0 );
 			long height = img.dimension( 1 );
 
-			// make sure we got three positions
-			if ( img.numDimensions() != 3 ) {
-				IJ.log( "Currently, only images with 3 dimensions are supported (X,Y and C)." );
-				return;
-			}
-
 			// iterate over all thepoints of that frame
 			Iterator< CellColorInfo > itr = points.get( frame ).iterator();
 			while ( itr.hasNext() ) {

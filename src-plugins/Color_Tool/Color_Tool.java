@@ -279,8 +279,15 @@ public class Color_Tool {
 
 	protected Img< FloatType > loadImage( String path ) {
 		try {
+			// load the image
+			ArrayImgFactory< FloatType > imgFactory = new ArrayImgFactory< FloatType >();
 			Img< FloatType > img = new ImgOpener().openImg( path,
-						new ArrayImgFactory< FloatType >(), new FloatType() );
+						imgFactory, new FloatType() );
+			// make sure we have three dimensions (X, Y, C)
+			if (img.numDimensions() != 3) {
+				IJ.log( "Currently, only images with 3 dimensions are supported (X,Y and C)." );
+				return null;
+			}
 			return img;
 		} catch (ImgIOException e) {
 			IJ.log("Couldn't open image: " + path);
