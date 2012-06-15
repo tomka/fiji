@@ -34,6 +34,7 @@ public class Color_Tool {
 	protected Mode mode;
 	protected String delimiter = ",";
 	protected String outputFileType = "png";
+	protected ArrayList<FloatType> boundaryMarker = null;
 	
 	protected class ImageInfo {
 		public String path;
@@ -98,6 +99,15 @@ public class Color_Tool {
 			this.name = name;
 			this.path = "";
 			this.type = type;
+		}
+	}
+
+	public Color_Tool() {
+		// Set up boundary marker -- use negative infinity
+		// Don't use NaN, as it causes a severe performance drop
+		this.boundaryMarker = new ArrayList<FloatType>(3);
+		for (int c=0;c<3;++c) {
+			this.boundaryMarker.add( new FloatType( Float.NEGATIVE_INFINITY ) );
 		}
 	}
 	
@@ -266,7 +276,95 @@ public class Color_Tool {
 			return null;
 		}
 	}
-	
+
+	/**
+	 * Replace all the occurences of one value with another one.
+	 */
+	protected <S extends RealType< S > > void replaceValue( Img< S > img, ArrayList<S> find, ArrayList<S> replace ) {
+		long width = img.dimension( 0 );
+		long height = img.dimension( 1 );
+		long[] pos = new long[3];
+
+		RandomAccess< S > ra = img.randomAccess();
+
+		for (int x=0; x<width;++x) {
+			for (int y=0; y<height; ++y) {
+				pos[0] = x;
+				pos[1] = y;
+				// check if the current value is the one we look for
+				boolean found = true;
+				for (int c=0; c<3; ++c) {
+					pos[2] = c;
+					ra.setPosition(pos);
+					found &= find.get(c).compareTo( ra.get() ) == 0;
+				}
+				// replace the value if found
+				if (found) {
+					for (int c=0; c<3; ++c) {
+						ra.setPosition(c, 2);
+						ra.get().set( replace.get(c).copy() );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Finds the value of which mark the bounding structures.
+	 */
+	protected static <S extends RealType< S > > ArrayList<S> findStructureValues( RandomAccess<S> ra ) {
+		// get starting position
+		long[] pos = new long[3];
+		ra.localize( pos );
+
+		// Walk throug the channels to get the interior values.
+		ArrayList<S> interior = new ArrayList<S>(3);
+		for (int c=0;c<3;++c) {
+			ra.setPosition(c, 2);
+			interior.add( ra.get().copy() );
+		}
+
+		/* Walk to the left until we see something different.
+		 * If we reach zero, walk to the right.
+		 */
+		boolean searching = true;
+		boolean walkLeft = true;
+		long x = ra.getLongPosition( 0 );
+		while (searching) {
+			// walk to the left/right
+			if (walkLeft) {
+				x--;
+			} else {
+				x++;
+			}
+			// flip direction if below zero
+			if (x < 0) {
+				walkLeft = false;
+				x++;
+			}
+			// set position
+			ra.setPosition(x, 0);
+
+			// check if the current value is different from the start
+			boolean same = true;
+			for (int c=0;c<3;++c) {
+				ra.setPosition(c, 2);
+				same &= interior.get(c).compareTo( ra.get() ) == 0;
+			}
+			searching = same;
+		}
+		// assume we found what we were looking for
+		ArrayList<S> boundary = new ArrayList<S>(3);
+		for (int c=0;c<3;++c) {
+			ra.setPosition(c, 2);
+			boundary.add( ra.get().copy() );
+		}
+
+		// reset to original position and return
+		ra.setPosition( pos );
+		return boundary;
+	}
+
 	/**
 	 * Recursively fills surrounding pixels of the old color. It operates
 	 * only in 2D. Based on code from:

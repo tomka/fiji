@@ -282,6 +282,11 @@ extends Color_Tool implements PlugIn {
 			if (img == null) {
 				continue;
 			}
+
+			// we want to mark the boundary structures on every frame
+			boolean markStructures = true;
+			ArrayList<FloatType> boundValues = null;
+			// get extent for in-range checks
 			long width = img.dimension( 0 );
 			long height = img.dimension( 1 );
 
@@ -307,6 +312,15 @@ extends Color_Tool implements PlugIn {
 						return;
 				}
 
+				// mark the membrane strutures if not already done
+				if (markStructures) {
+					pos[2] = 0;
+					ra.setPosition( pos );
+					boundValues = findStructureValues( ra );
+					replaceValue( img, boundValues, boundaryMarker );
+					markStructures = false;
+				}
+
 				// get fill color
 				FloatType[] fill = getFillColor(
 					cci.colorFrame.intValue(), numImages );
@@ -327,6 +341,9 @@ extends Color_Tool implements PlugIn {
 				}
 				info.modified = true;
 			}
+
+			// unmark the boundary structures
+			replaceValue( img, boundaryMarker, boundValues );
 
 			// Create an RGB image out of it and save the file back to disk
 			Img< ARGBType > result = convertToARGB( img );
