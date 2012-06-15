@@ -324,7 +324,6 @@ extends Color_Tool implements PlugIn {
 				// get fill color
 				FloatType[] fill = getFillColor(
 					cci.colorFrame.intValue(), numImages );
-
 				// iterate over every channel
 				for (int d=0; d<3; d++) {
 					// set channel
@@ -333,7 +332,7 @@ extends Color_Tool implements PlugIn {
 					// expect to be in a cell -- flood fill!
 					FloatType old = ra.get().copy();
 					try {
-						// flood fill exery channel with the approptiate color
+						// flood fill every channel with the approptiate value
 						floodLoop( ra, width, height, old, fill[d] );
 					} catch (StackOverflowError e) {
 						IJ.log( "Encountered recursion limit for position " + Arrays.toString(pos) + " in frame " + frame);

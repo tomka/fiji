@@ -174,8 +174,8 @@ public class Color_Tool {
 				return null;
 			}
 			// get color model and LUT colors
-		        IndexColorModel cm = (IndexColorModel)ip.getColorModel();
-		        LookUpTable lut = new LookUpTable(cm);
+			IndexColorModel cm = (IndexColorModel)ip.getColorModel();
+			LookUpTable lut = new LookUpTable(cm);
 			int mapSize = lut.getMapSize();
 			byte[] _rB = lut.getReds();
 			byte[] _gB = lut.getGreens();
