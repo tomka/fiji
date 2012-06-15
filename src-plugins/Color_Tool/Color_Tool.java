@@ -288,6 +288,35 @@ public class Color_Tool {
 				IJ.log( "Currently, only images with 3 dimensions are supported (X,Y and C)." );
 				return null;
 			}
+			// make sure we have three channels
+			if ( img.dimension( 2 ) != 3) {
+				if (img.dimension( 2 ) == 1) {
+					IJ.log( "The image has exactly one channel. Can't deal with that yet." );
+					return null;
+					/*
+					// copy the firt channel to channel two and three
+					long width = img.dimension( 0 );
+					long height = img.dimension( 1 );
+					final Img< FloatType > newImg = imgFactory.create( new long[]{ width, height, 3 }, new FloatType() );
+					Cursor< FloatType > cursorInput = img.localizingCursor();
+					Cursor< FloatType > cursorOutput = newImg.cursor();
+					long[] pos = new long[3];
+					while ( cursorInput.hasNext())
+					{
+					    // move both forward
+					    cursorInput.fwd();
+					    cursorInput.localize(pos);
+
+					    // set the value of this pixel of the output image, every Type supports T.set( T type )
+					    cursorOutput.get().set( cursorInput.get() );
+					    return null;
+					}
+					*/
+				} else {
+					IJ.log( "The image has not exactly one or three channels. Can't deal with that." );
+					return null;
+				}
+			}
 			return img;
 		} catch (ImgIOException e) {
 			IJ.log("Couldn't open image: " + path);
