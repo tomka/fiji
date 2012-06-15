@@ -432,4 +432,8 @@ public class Color_Tool {
 			}
 		}
 	}
+
+	void log( String msg ) {
+		System.out.println( msg );
+	}
 }
