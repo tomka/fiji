@@ -28,6 +28,7 @@ from java.lang import String
 from org.apache.poi.hssf.usermodel import HSSFCell, HSSFRichTextString, HSSFRow, HSSFSheet, HSSFWorkbook
 from org.apache.poi.hssf import OldExcelFormatException
 from org.apache.poi.poifs.filesystem import POIFSFileSystem
+from org.apache.poi.hssf.record.RecordInputStream import LeftoverDataException
 from jxl import Workbook as JXLWorkbook, CellType as JXLCellType
 from java.io import File, FileInputStream, IOException
 from jxl.read.biff import BiffException
@@ -642,10 +643,13 @@ class SpreadsheetViewPanel( ViewPanel ):
 			self.poiUsage[ workbook ] = True
 		except OldExcelFormatException, e:
 			# Problems could happen with old (< Excel 97)
-			log( "A very old Excel file version has been detected, switching to JXL" )
+			log( "A very old Excel file version has been detected, will try JXL.: " + filepath )
 			useJXL = True
 		except IOException, e:
-			log( "An IO problem has been detected, trying JXL" )
+			log( "An IO problem has been detected, will try JXL. Error: " + e.toString() )
+			useJXL = True
+		except LeftoverDataException, e:
+			log( "An IO problem has been detected, will try JXL. Error: " + e.toString() )
 			useJXL = True
 		except:
 			log( "An error occured while trying to access the file: " + filepath )
@@ -655,8 +659,7 @@ class SpreadsheetViewPanel( ViewPanel ):
 				workbook = JXLWorkbook.getWorkbook( File( filepath ) )
 				self.poiUsage[ workbook ] = False
 			except BiffException, e:
-				log( "Couldn't open the file with JXL: " + filepath )
-				log( "Error e: " + e.toString() )
+				log( "Couldn't open the file with JXL: " + filepath + " (Error: " + e.toString() + ")" )
 			except:
 				log( "An error occured while trying to access the file: " + filepath )
 
