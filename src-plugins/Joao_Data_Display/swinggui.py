@@ -724,9 +724,9 @@ class SpreadsheetViewPanel( ViewPanel ):
 			else:
 				# update the model
 				for j in range(1, model.getRowCount()):
+					cell = sheet.getCell(i, j)
 					# Only add cell if not empty
 					if cell.getType() != JXLCellType.EMPTY:
-						cell = sheet.getCell(i, j)
 						model.setValueAt( cell.getContents(), j-1, i)
 		# Create plots
 		charts = []
