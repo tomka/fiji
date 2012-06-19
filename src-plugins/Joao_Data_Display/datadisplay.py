@@ -193,9 +193,10 @@ class Controler:
 		self.uis.append(gui)
 		gui.show()
 
-	def exportToOmero(self, host, port, username, password):
+	def exportToOmero(self, host, port, username, password, importerPath):
 		log( "Exporting data to OMERO server" )
-		exportProjectToOmero( self.project, host, port, username, password )
+		exportProjectToOmero( self.project, host, port, username, password, importerPath )
+		log( "Export done." )
 
 # Main entry
 def main():

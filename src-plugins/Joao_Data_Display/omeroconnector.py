@@ -231,7 +231,7 @@ class OmeroExporter:
 	def closeConnection(self):
 		self.client.closeSession()
 
-def exportProjectToOmero( project, host, port, username, password, namespace="data" ):
+def exportProjectToOmero( project, host, port, username, password, importerPath, namespace="data" ):
 	# Create a new exporter
 	exporter = OmeroExporter(host, port, username, password)
 	exporter.connect()
@@ -304,7 +304,6 @@ def exportProjectToOmero( project, host, port, username, password, namespace="da
 
 		# Import images
 		# At the moment it is easier to just call the CLI importer
-		importerBin = "/home/tom/tmp/OMERO.clients-Beta4.3.3.linux/importer-cli"
 		arguments = "-s " + host + " -u " + username + " -w " + password + " -d " + str(d.getId().getValue())
 		for ip in imagePaths:
 			iFile = File(ip)
@@ -312,7 +311,7 @@ def exportProjectToOmero( project, host, port, username, password, namespace="da
 			iDesc = "\"An image of experiment/dataset " + e.name + ".\""
 			arguments += " -n " + iName + " -x " + iDesc
 			print( ">>>>>>>>>>>>>> IMPORTING " + ip + " <<<<<<<<<<<<<<<<<" )
-			call = importerBin + " " + arguments + ' \'' + ip + '\''
+			call = importerPath + " " + arguments + ' \'' + ip + '\''
 			print( "Call: " + call )
 			pcall = sub.Popen(call, shell=True, stdout=sub.PIPE, stderr=sub.PIPE)
 			output, errors = pcall.communicate()

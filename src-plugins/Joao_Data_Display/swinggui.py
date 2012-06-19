@@ -15,7 +15,7 @@ from helpers import log, exit
 from javax.swing import JPanel, JList, JLabel, JFrame, JButton, ListSelectionModel, DefaultListModel, JTabbedPane, JScrollPane, BorderFactory, JTable, JComboBox, JSlider,JTextField, JPasswordField
 from javax.swing.table import DefaultTableModel
 from java.awt import BorderLayout, GridLayout, Dimension, ScrollPane
-from ij import IJ, ImagePlus
+from ij import IJ, ImagePlus, Prefs
 from ij.gui import ImageCanvas
 from ij.plugin.filter import Info
 from loci.plugins import LociImporter
@@ -57,25 +57,35 @@ class OmeroExportGUI:
 		self.portInput = None
 		self.userInput = None
 		self.passInput = None
+		self.omeroClientInput = None
+		self.PREF_KEY = "DataViewer."
 		self.init()
 
 	def init(self):
 		frame = JFrame( "OMERO export" )
 		frame.setLayout( BorderLayout() )
 		self.hostInput = JTextField(30)
-		self.hostInput.setText("omero-srv1.mpi-cbg.de")
+		self.hostInput.setText( Prefs.get(self.PREF_KEY+"omero-server", "omero-srv1.mpi-cbg.de") )
 		self.portInput = JTextField(30)
-		self.portInput.setText("4064")
+		self.portInput.setText( Prefs.get(self.PREF_KEY+"omero-port", "4064") )
 		self.userInput = JTextField(30)
+		self.userInput.setText( Prefs.get(self.PREF_KEY+"omero-user", "" ) )
 		self.passInput = JPasswordField(30)
-		inputPanel1 = JPanel(BorderLayout())
-		inputPanel1.add( self.hostInput, BorderLayout.NORTH )
-		inputPanel1.add( self.portInput, BorderLayout.CENTER )
-		inputPanel2 = JPanel(BorderLayout())
-		inputPanel2.add( self.userInput, BorderLayout.NORTH )
-		inputPanel2.add( self.passInput, BorderLayout.CENTER )
-		frame.add( inputPanel1, BorderLayout.NORTH )
-		frame.add( inputPanel2, BorderLayout.CENTER )
+		self.omeroClientInput = JTextField(30)
+		self.omeroClientInput.setText( Prefs.get(self.PREF_KEY+"omero-importer-cli", "" ) )
+		inputPanel1 = JPanel( GridLayout(0,2) )
+		inputPanel1.add( JLabel( "Host" ) )
+		inputPanel1.add( self.hostInput )
+		inputPanel1.add( JLabel( "Port" ) )
+		inputPanel1.add( self.portInput )
+		inputPanel1.add( JLabel( "Username" ) )
+		inputPanel1.add( self.userInput )
+		inputPanel1.add( JLabel( "Password" ) )
+		inputPanel1.add( self.passInput )
+		inputPanel1.add( JLabel( "CLI importer path" ) )
+		inputPanel1.add( self.omeroClientInput )
+		frame.add( JLabel( "Please configure the connection settings." ), BorderLayout.NORTH )
+		frame.add( inputPanel1, BorderLayout.CENTER )
 		buttonPanel = JPanel()
 		buttonPanel.add( JButton("Close", actionPerformed=lambda x: self.close() ) )
 		buttonPanel.add( JButton("Export", actionPerformed=lambda x: self.export() ) )
@@ -88,11 +98,19 @@ class OmeroExportGUI:
 		self.frame = frame
 
 	def export(self):
+		# get settings
 		host = self.hostInput.getText()
 		port = int( self.portInput.getText() )
 		username = self.userInput.getText()
 		password = String.valueOf( self.passInput.getPassword() )
-		self.controler.exportToOmero(host, port, username, password)
+		importerPath = self.omeroClientInput.getText()
+		# save settings
+		Prefs.set( self.PREF_KEY+"omero-server", host )
+		Prefs.set( self.PREF_KEY+"omero-port", self.portInput.getText() )
+		Prefs.set( self.PREF_KEY+"omero-user", username )
+		Prefs.set( self.PREF_KEY+"omero-importer-cli", importerPath )
+		# export
+		self.controler.exportToOmero(host, port, username, password, importerPath)
 
 	def close(self):
 		self.frame.setVisible( False )
