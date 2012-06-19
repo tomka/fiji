@@ -203,9 +203,9 @@ def main():
 	inputfile = od.getFileName()
 	if inputfile == None:
 		return
-	log("Loading project")
-	#project = loadYAMLProject( "/home/tom/tmp/joao-experiments.yml" )
 	inputpath = os.path.join( od.getDirectory(), inputfile )
+	#inputpath = "/home/tom/tmp/joao-experiments.yml"
+	log("Loading project")
 	project = loadYAMLProject( inputpath )
 	#project = loadSampleProject( "Joao" )
 	if project is None:
