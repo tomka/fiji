@@ -214,6 +214,16 @@ public class SingleWindowDisplay<T extends RealType<T>> extends JFrame implement
 		this.setVisible(true);
 	}
 
+	public void validate() {
+		super.validate();
+		if (imagePanel != null && isHistogram(currentlyDisplayedImageResult)) {
+			System.out.println("Histogram resized");
+			Histogram2D<T> hs = mapOf2DHistograms.get(currentlyDisplayedImageResult);
+
+			//imagePanel.setDrawingSize(this.getWidth(), this)
+		}
+	}
+
 	public void handleImage(RandomAccessibleInterval<T> image, String name) {
 		listOfImages.add( new NamedContainer<RandomAccessibleInterval<? extends RealType<?>> >(
 				image, name ) );
