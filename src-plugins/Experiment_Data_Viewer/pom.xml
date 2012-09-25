@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+		<parent>
+				<groupId>sc.fiji</groupId>
+				<artifactId>pom-fiji-plugins</artifactId>
+				<version>2.0.0-SNAPSHOT</version>
+		</parent>
+
+		<artifactId>Experiment_Data_Viewer</artifactId>
+
+		<name>plugins/Experiment_Data_Viewer.jar</name>
+		<description>View different types of data in one user interface.</description>
+
+		<dependencies>
+
+			<dependency>
+				<groupId>sc.fiji</groupId>
+				<artifactId>fiji-lib</artifactId>
+				<version>${imagej.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij</artifactId>
+				<version>${imagej1.version}</version>
+			</dependency>
+
+			<!-- ij-core is needed to use ImageJ. -->
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij-core</artifactId>
+				<version>${imagej.version}</version>
+			</dependency>
+
+			<!-- ij-data is needed to work with Datasets. -->
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij-data</artifactId>
+				<version>${imagej.version}</version>
+			</dependency>
+
+			<!-- ij-io is needed to use the IOService, to load data. -->
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij-io</artifactId>
+				<version>${imagej.version}</version>
+			</dependency>
+
+			<!-- ij-tools is needed for some core behavior of the image viewer,
+			such as +/- to zoom in/out of the canvas. -->
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij-tools</artifactId>
+				<version>${imagej.version}</version>
+				<scope>runtime</scope>
+			</dependency>
+
+			<!-- We need to add a user interface for anything to be displayed! -->
+			<dependency>
+				<groupId>net.imagej</groupId>
+				<artifactId>ij-ui-swing</artifactId>
+				<version>${imagej.version}</version>
+				<scope>runtime</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.yaml</groupId>
+				<artifactId>snakeyaml</artifactId>
+				<version>1.10</version>
+			</dependency>
+
+			<!-- We need to add file loading capabilities. -->
+			<dependency>
+				<groupId>loci</groupId>
+				<artifactId>loci_plugins</artifactId>
+				<version>4.4.4</version>
+			</dependency>
+
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+
+</project>
