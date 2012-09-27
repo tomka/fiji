@@ -1,0 +1,22 @@
+name: TestProject
+basedirectory: /path/to/test/data
+filters:
+  exclusive:
+    Filter1: [a,b,c]
+    Filter1A: [a2,b2,c2]
+  inclusive:
+    Filter2: [d,e]
+    Filter3: [f,g,h]
+experiments:
+  - name: ExperimentOne
+    conditions:
+      Filter1: [a]
+    views:
+      movie:
+        files:
+          - experimentOneData1
+          - experimentOneData2
+      metadata:
+        files:
+          - experimentOneData3
+          - experimentOneData4
