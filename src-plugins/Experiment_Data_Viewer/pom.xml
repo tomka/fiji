@@ -81,6 +81,20 @@
 				<version>4.4.4</version>
 			</dependency>
 
+			<!-- We need IcePDF to load PDF files. -->
+			<dependency>
+				<groupId>org.icesoft</groupId>
+				<artifactId>icepdf-core</artifactId>
+				<version>4.3.3</version>
+			</dependency>
+
+			<!-- We need IcePDF to render and view PDF files. -->
+			<dependency>
+				<groupId>org.icesoft</groupId>
+				<artifactId>icepdf-viewer</artifactId>
+				<version>4.3.3</version>
+			</dependency>
+
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
