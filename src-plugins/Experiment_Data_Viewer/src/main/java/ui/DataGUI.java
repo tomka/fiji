@@ -63,7 +63,7 @@ public class DataGUI extends UI {
 			} else if ( v.getType() == View.ViewType.FIGURE ) {
 
 			} else if ( v.getType() == View.ViewType.METADATA ) {
-
+				dataPanel.add( new MetadataViewPanel( v ) );
 			} else if ( v.getType() == View.ViewType.TABLE ) {
 
 			} else if ( v.getType() == View.ViewType.UNKNOWN ) {
