@@ -61,13 +61,13 @@ public class DataGUI extends UI {
 			if ( v.getType() == View.ViewType.MOVIE ) {
 				dataPanel.add( new MovieViewPanel( v ) );
 			} else if ( v.getType() == View.ViewType.FIGURE ) {
-
+				dataPanel.add( new FigureViewPanel( v ) );
 			} else if ( v.getType() == View.ViewType.METADATA ) {
 				dataPanel.add( new MetadataViewPanel( v ) );
 			} else if ( v.getType() == View.ViewType.TABLE ) {
 
 			} else if ( v.getType() == View.ViewType.UNKNOWN ) {
-
+				// do nothing for unknown files
 			}
 		}
 		// complete the frame
