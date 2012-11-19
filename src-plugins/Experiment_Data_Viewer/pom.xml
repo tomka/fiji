@@ -77,6 +77,11 @@
 			<!-- We need to add file loading capabilities. -->
 			<dependency>
 				<groupId>loci</groupId>
+				<artifactId>loci-common</artifactId>
+				<version>4.4.4</version>
+			</dependency>
+			<dependency>
+				<groupId>loci</groupId>
 				<artifactId>loci_plugins</artifactId>
 				<version>4.4.4</version>
 			</dependency>
