@@ -46,7 +46,7 @@ public class DataGUI extends UI {
 			if (!searchingLayout) {
 				break;
 			}
-			if ( xDim < yDim ) {
+			if ( yDim < xDim ) {
 				yDim++;
 			} else {
 				xDim++;
