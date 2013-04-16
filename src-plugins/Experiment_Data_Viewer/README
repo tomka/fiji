@@ -1,0 +1,11 @@
+To build this plugin two IceSoft PDF components are needed. These are
+unfortunately not available in in neither the ImageJ Maven repository
+nor in the Maven Central repository. To make them available use:
+
+mvn install:install-file -Dfile=jars/icepdf-core-4.3.3.jar \
+    -DgroupId=org.icesoft -DartifactId=icepdf-core -Dversion=4.3.3 -Dpackaging=jar
+
+mvn install:install-file -Dfile=jars/icepdf-viewer-4.3.3.jar \
+    -DgroupId=org.icesoft -DartifactId=icepdf-viewer -Dversion=4.3.3 -Dpackaging=jar
+
+Of course, both files need to be present in Fiji's jars/ folder.
