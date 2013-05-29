@@ -34,6 +34,7 @@ public class DataGUI extends UI {
 		frame.setLayout( new BorderLayout() );
 		frame.setVisible( false );
 
+System.out.println("1");
 		/* find out how many views need to be created and
 		 * do a layout for them.
 		 */
@@ -54,6 +55,7 @@ public class DataGUI extends UI {
 		}
 		Helpers.logVerbose( "Creating space for " + xDim + "x" + yDim +
 			" views (" + numViews + " views are available)" );
+System.out.println("2");
 
 		// create and populate the data panel
 		dataPanel = new JPanel( new GridLayout( yDim, xDim ) );
@@ -70,6 +72,7 @@ public class DataGUI extends UI {
 				// do nothing for unknown files
 			}
 		}
+System.out.println("3");
 		// complete the frame
 		frame.add( dataPanel, BorderLayout.CENTER );
 		JButton closeButton = new JButton( "Close" );
